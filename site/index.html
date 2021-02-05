@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Chess</title>
+	<script src="helpers.js"></script>
+	<script src="socket.io/socket.io.js"></script>
+	<script src="input.js"></script>
+	<script src="grid.js"></script>
+	<script src="audio.js"></script>
+	<script src="sprite.js"></script>
+	<script src="chess.js"></script>
+	<link rel='shortcut icon' href='favicon.ico'>
+	<style>
+		body{
+			background-color: #222;
+		}
+		canvas{
+			background-color:black;
+		}
+		#game{
+			display: grid;
+			width: 900px;
+			box-sizing: border-box;
+			padding: 20px;
+			grid-template-columns: 600px 300px;
+			grid-column-gap: 10px;
+			margin: auto;
+		}
+		#right{
+			background-color: #444;
+			font-family: monospace;
+			font-size: 20px;
+			box-sizing: border-box;
+			padding: 10px;
+			font-weight: bold;
+			color: white;
+			overflow-y: scroll;
+			height: 600px;
+		}
+		button{
+			width: 80%;
+			border: 3px solid white;
+			background-color: black;
+			font-family: monospace;
+			color: white;
+			display: block;
+			margin: auto;
+			padding: 5px;
+			margin-bottom: 5px;
+		}
+		.promotion{
+			/*width: 60px;*/
+			position: absolute;
+			padding: 5px;
+			background-color: white;
+			border-radius: 5px;
+		}
+		expand{
+			display: none;
+		}
+		#right::-webkit-scrollbar {
+		  	width: 15px;
+		}
+		 
+		#right::-webkit-scrollbar-track {
+		  	box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+		}
+		 
+		#right::-webkit-scrollbar-thumb {
+		  	background-color: darkgrey;
+		  	outline: 1px solid slategrey;
+		}
+	</style>
+</head>
+<body>
+	<div id="game">
+		<canvas width=600 height=600></canvas>
+		<div id=right>
+			<button onclick="start()">Start</button>
+			<button onclick="flip()">Flip Board</button>
+			<button id=toggle onclick="expand()">More</button>
+			<expand>
+				<button onclick="ChessGame.showCoords=!ChessGame.showCoords">Toggle Coords</button>
+				<button onclick="toggleClock()">Toggle Clock</button>
+				<button onclick="ChessGame.goBack(true)">Go Back</button>
+				<button onclick="compMove()">Computer Move</button>
+				<button onclick="copyFENtoClip()">Copy FEN</button>
+				<button onclick="getFEN()">Paste FEN</button>
+				<button onclick="loadRandomPuzzle()">Load Puzzle</button>
+			</expand>
+			<p id=gamedata></p>
+		</div>
+	</div>
+	<script src="main.js"></script>
+</body>
+</html>
