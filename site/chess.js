@@ -10,6 +10,7 @@
 	var turn = -1;
 	var black_view = false;
 	var moves = [];
+	var flip_black = false;
 
 	var en_pessant = null;
 
@@ -536,8 +537,14 @@
 			if(thing instanceof Piece){
 				if(black_view){
 					thing.direction = 180;
+					if(thing.color=='white' && flip_black){
+						thing.direction = thing.dir + 180;
+					}
 				} else {
 					thing.direction = 0;
+					if(thing.color=='black' && flip_black){
+						thing.direction = thing.dir + 180;
+					}
 				}
 			}
 			thing.draw();
@@ -567,6 +574,9 @@
 	ChessGame.instances = board_instances;
 	ChessGame.flipBoard = function(){
 		black_view = !black_view;
+	}
+	ChessGame.flipBlack = function(){
+		flip_black = !flip_black;
 	}
 	ChessGame.makeMove = async function(move){
 		current_piece = board.getSquareFromCode(move.slice(0,2)).piece;
