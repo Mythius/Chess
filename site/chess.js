@@ -226,7 +226,7 @@
 				squares = squares.concat(board.getSquares(tile.x,tile.y,1,-1,this.color,false));
 				squares = squares.concat(board.getSquares(tile.x,tile.y,-1,1,this.color,false));
 				squares = squares.concat(board.getSquares(tile.x,tile.y,-1,-1,this.color,false));
-				if(include_casteling)squares = squares.concat(canCastle(this));
+				if(include_casteling) squares = squares.concat(canCastle(this));
 			}
 			return squares;
 		}

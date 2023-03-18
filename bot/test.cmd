@@ -1,3 +1,3 @@
 @echo off
-node main.js
+node --inspect main.js
 pause
