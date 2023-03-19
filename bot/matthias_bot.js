@@ -3,6 +3,8 @@ const XY = A1 => {return{x:A1[0].toUpperCase().charCodeAt(0)-65,y:7-(Number(A1[1
 const ot = t => t=='w'?'b':'w';
 
 // 2k1r3/ppp3bp/2n5/2P2pBq/Q2p4/3N2P1/P1KN1P1P/R7 w - -
+// Q4b2/7Q/1kp5/pp6/8/1K2pPP1/P2N2q1/R1N5 w - - almost checkmate
+// 5b2/1k1P3p/p1p5/1p6/4Q3/1K2pPP1/P2N2q1/R1N5 w - - almost promotion
 
 var cache = {};
 
@@ -57,14 +59,22 @@ class Piece{
 		} else if(to == 'p'){
 			let dy = this.color=='w'?-1:1;
 			let hr = this.color=='w'?6:1;
+			let p = this.color=='w'?0:7;
 			let f1 = b.square(x,y+dy);
 			let f2 = b.square(x,y+dy*2);
 			let l = b.square(x-1,y+dy);
 			let r = b.square(x+1,y+dy);
 			if(!f1.type){
-				pos_sqrs.push({x,y:y+dy});
 				if(!f2.type && y==hr){
-					pos_sqrs.push({x,y:y+dy*2})
+					pos_sqrs.push({x,y:y+dy*2});
+				}
+				if((y+dy)==p){
+					pos_sqrs.push({x,y:y+dy,p:'q'});
+					pos_sqrs.push({x,y:y+dy,p:'r'});
+					pos_sqrs.push({x,y:y+dy,p:'n'});
+					pos_sqrs.push({x,y:y+dy,p:'b'});
+				} else {
+					pos_sqrs.push({x,y:y+dy});
 				}
 			}
 			if(l!=-1&&l!=0&&l.color!=this.color){
@@ -74,7 +84,14 @@ class Piece{
 				pos_sqrs.push({x:x+1,y:y+dy});
 			}
 		}
-		if(log) console.log(`Moves for ${A1({x,y})} are: `+pos_sqrs.map(e=>A1(e)).join(', '))
+		function printMap(e){
+			if(e.p){
+				return A1(e) + '=' + e.p;
+			} else {
+				return A1(e);
+			}
+		}
+		if(log) console.log(`Moves for ${A1({x,y})} are: `+pos_sqrs.map(printMap).join(', '))
 		return pos_sqrs;
 	}
 	get letter(){
@@ -208,22 +225,43 @@ class Board{
 		return fen;
 	}
 	theorize(move_code,make_move=false){
-		let p1 = move_code.slice(0,2);
-		let p2 = move_code.slice(2,4);
-		if(p1.length!=2||p2.length!=2){
-			console.log('Invalid');
-			return;
-		}
-		let nb = new Board(this.fen);
-		nb.turn = ot(this.turn);
-		if(true){ // normal move
+		var nb;
+		if(move_code == 'O-O'){
+
+		} else if (move_code == 'O-O-O'){
+
+		} else if (move_code.includes('=')){
+			const pt = ['n','b','r','q']
+			let p1 = move_code.slice(0,2);
+			let p2 = move_code.slice(2,4);
+			let p3 = move_code.trim().slice(-1);
+			if(p1.length!=2||p2.length!=2||!pt.includes(p3.toLowerCase())){
+				console.log('Invalid');
+				return;
+			}
+			nb = new Board(this.fen);
+			nb.turn = ot(this.turn);
+			let a = XY(p1);
+			let b = XY(p2);
+			let npcode = nb.squares[a.y][a.x].color=='w'?p3.toUpperCase():p3.toLowerCase();
+			nb.squares[b.y][b.x]=new Piece(npcode,this);
+			nb.squares[a.y][a.x]=null;
+		} else {
+			let p1 = move_code.slice(0,2);
+			let p2 = move_code.slice(2,4);
+			if(p1.length!=2||p2.length!=2){
+				console.log('Invalid');
+				return;
+			}
+			nb = new Board(this.fen);
+			nb.turn = ot(this.turn);
 			let a = XY(p1);
 			let b = XY(p2);
 			nb.squares[b.y][b.x]=nb.squares[a.y][a.x];
 			nb.squares[a.y][a.x]=null;
 		}
 		if(make_move){
-			cache = {};
+			// cache = {};
 			this.lines = [];
 			delete exports.board;
 			exports.board = nb;
@@ -256,7 +294,11 @@ class Board{
 			if(t&&t.color==this.turn){
 				let pos = A1({x,y});
 				for(let xy of t.getPossibleMoves(x,y)){
-					move_codes.push(pos+A1(xy));
+					if(xy.p){
+						move_codes.push(pos+A1(xy)+'='+xy.p);
+					} else {
+						move_codes.push(pos+A1(xy));
+					}
 				}
 			}
 		});
@@ -276,12 +318,12 @@ class Board{
 		}
 		if(log) console.log('Moves: '+valid_moves.join(','))
 		if(valid_moves.length == 0){
-			if(this.isCheck(this.turn)){
+			if(!this.isCheck(this.turn)){
 				this.stalemate = true;
 				return 'STALEMATE';
 			} else {
-				this.checkmate = 'L';
-				return '#L';
+				this.checkmate = true;
+				return 'CHECKMATE';
 			}
 		}
 		// if(log) console.log('Moves: '+move_codes.join(','))
@@ -296,7 +338,21 @@ class Board{
 		if(this.lines.length == 0){
 			end_info = this.generatePossibilities();
 		}
-		if(end_info) return;
+		if(end_info){
+			console.log('END SEEN:'+end_info)
+			if(end_info == 'STALEMATE'){
+				this.apoints = {w:0,b:0,o:0}
+			} else if(end_info == 'CHECKMATE'){
+				if(this.turn=='b'){
+					this.apoints = 1200;
+				} else {
+					this.apoints = -1200;
+				}
+				console.log(this.toString());
+				console.log(this.apoints);
+			}
+			return;
+		}
 		let ranked_moves = this.lines.sort(()=>Math.random()-.5);
 		if(depth == 1){
 			ranked_moves = ranked_moves.map(m=>{
