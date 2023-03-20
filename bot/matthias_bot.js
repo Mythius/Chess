@@ -1,3 +1,4 @@
+const {spawn} = require('child_process');
 const A1 = t => String.fromCharCode(t.x+65)+(8-t.y);
 const XY = A1 => {return{x:A1[0].toUpperCase().charCodeAt(0)-65,y:7-(Number(A1[1])-1)}};
 const ot = t => t=='w'?'b':'w';
@@ -328,7 +329,70 @@ class Board{
 		}
 		// if(log) console.log('Moves: '+move_codes.join(','))
 	}
-	choosePossibilites(depth=1){
+	async choosePossibilites(depth=1,log=false){
+		if(depth <= 3){
+			return await this.choosePossibilitesMULTI(depth,log);
+		}
+		var best_move = '';
+		var end_info;
+		if(this.apoints && this.adepth > depth){
+			console.log('skip');
+			return this.bm;
+		}
+		if(this.lines.length == 0){
+			end_info = this.generatePossibilities();
+		}
+		if(end_info){
+			console.log('END SEEN:'+end_info)
+			if(end_info == 'STALEMATE'){
+				this.apoints = {w:0,b:0,o:0}
+			} else if(end_info == 'CHECKMATE'){
+				if(this.turn=='b'){
+					this.apoints = 1200;
+				} else {
+					this.apoints = -1200;
+				}
+				if(log) console.log(this.toString());
+			}
+			return;
+		}
+		let ranked_moves = this.lines.sort(()=>Math.random()-.5);
+		if(depth == 1){
+			ranked_moves = ranked_moves.map(m=>{
+				return {mc:m.mc,p:cache[m.fen].points.o};
+			});
+		} else {
+			for(let moves of ranked_moves){
+				cache[moves.fen].choosePossibilites(depth-1,log);
+			}
+			ranked_moves = ranked_moves.map(m=>{
+				return {mc:m.mc,p:cache[m.fen].apoints};
+			});
+		}
+		ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p)
+		// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
+		let bm;
+		if(this.turn=='w'){
+			this.apoints = ranked_moves[0].p;
+			this.adepth=depth;
+			this.bm = bm;
+			bm = ranked_moves[0].mc;
+			if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
+			return bm;
+		} else {
+			this.apoints = ranked_moves[ranked_moves.length-1].p;
+			this.adepth=depth;
+			this.bm = bm;
+			bm = ranked_moves[ranked_moves.length-1].mc;
+			if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
+			return bm;
+		}
+	}
+	async choosePossibilitesMULTI(depth=1,log=false){
+		if(depth > 3){
+			this.choosePossibilites(depth,log);
+			return;
+		}
 		var best_move = '';
 		var end_info;
 		if(this.apoints && this.adepth > depth){
@@ -353,6 +417,7 @@ class Board{
 			}
 			return;
 		}
+		let promises = [];
 		let ranked_moves = this.lines.sort(()=>Math.random()-.5);
 		if(depth == 1){
 			ranked_moves = ranked_moves.map(m=>{
@@ -360,30 +425,43 @@ class Board{
 			});
 		} else {
 			for(let moves of ranked_moves){
-				cache[moves.fen].choosePossibilites(depth-1);
+				promises.push(new Promise((res,rej)=>{
+					let sub_proc = spawn('node',['brancher.js',depth-1,moves.fen]);
+					let waiting = true;
+					sub_proc.stdout.on('data',data=>{
+						if(log && waiting) console.log('Recieved From SubProc: '+Number(data.toString()));
+						if(waiting) cache[moves.fen].apoints = Number(data.toString());
+						waiting = false;
+						res();
+					})
+				}))
 			}
-			ranked_moves = ranked_moves.map(m=>{
-				return {mc:m.mc,p:cache[m.fen].apoints};
-			});
 		}
-		ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p)
-		// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
-		let bm;
-		if(this.turn=='w'){
-			this.apoints = ranked_moves[0].p;
-			this.adepth=depth;
-			this.bm = bm;
-			bm = ranked_moves[0].mc;
-			if(depth!=1) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
-			return bm;
-		} else {
-			this.apoints = ranked_moves[ranked_moves.length-1].p;
-			this.adepth=depth;
-			this.bm = bm;
-			bm = ranked_moves[ranked_moves.length-1].mc;
-			if(depth!=1) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
-			return bm;
-		}
+		return await Promise.all(promises).then(e=>{
+			if(depth != 1){
+				ranked_moves = ranked_moves.map(m=>{
+					return {mc:m.mc,p:cache[m.fen].apoints};
+				});
+			}
+			ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p)
+			// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
+			let bm;
+			if(this.turn=='w'){
+				this.apoints = ranked_moves[0].p;
+				this.adepth=depth;
+				this.bm = bm;
+				bm = ranked_moves[0].mc;
+				if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
+				return bm;
+			} else {
+				this.apoints = ranked_moves[ranked_moves.length-1].p;
+				this.adepth=depth;
+				this.bm = bm;
+				bm = ranked_moves[ranked_moves.length-1].mc;
+				if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
+				return bm;
+			}
+		})
 	}
 }
 
