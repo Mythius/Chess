@@ -7,6 +7,7 @@ console.log('Matthias Chess Bot');
 console.log('\td to Display');
 console.log('\tfen {your fen here} to load position')
 console.log('\tm E2E4 to move')
+console.log('\tgo (calculates best move)')
 
 async function main(){
 	let command = await c.in('');
@@ -21,6 +22,9 @@ async function main(){
 		console.clear();
 	} else if (command == 'start'){
 		b.board.loadFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
+	} else if (command == 'go'){
+		let mc = await b.board.choosePossibilites(3,DEV);
+		console.log('Best Move:'+mc);
 	} else if (command == 'eval'){
 		let p = b.board.points;
 		console.log(`W:${p.w} B:${p.b} O:${p.o}`)
