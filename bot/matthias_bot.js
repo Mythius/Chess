@@ -427,6 +427,7 @@ class Board{
 			for(let moves of ranked_moves){
 				promises.push(new Promise((res,rej)=>{
 					let sub_proc = spawn('node',['brancher.js',depth-1,moves.fen]);
+					if(log) console.log('starting subproc');
 					let waiting = true;
 					sub_proc.stdout.on('data',data=>{
 						if(log && waiting) console.log('Recieved From SubProc: '+Number(data.toString()));
@@ -434,10 +435,11 @@ class Board{
 						waiting = false;
 						res();
 					})
-				}))
+				}));
 			}
 		}
 		return await Promise.all(promises).then(e=>{
+			if(log) console.log('Recieved All SubProc Responses');
 			if(depth != 1){
 				ranked_moves = ranked_moves.map(m=>{
 					return {mc:m.mc,p:cache[m.fen].apoints};
