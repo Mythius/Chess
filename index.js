@@ -4,6 +4,7 @@ var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var fs = require('fs');
 var system = require('child_process');
+var mbot = require('./bot/matthias_bot.js');
 
 var file = {
 	save: function(name,text){
@@ -52,31 +53,22 @@ io.on('connection',socket=>{
 	var c = new client(socket);
 	socket.on('calcMove',fen=>{
 		getBestMove(fen).then(move=>{
+			console.log('Calculated Move: '+move);
 			socket.emit('move',move);
 		});
 	});
 });
 
-async function getBestMove(fen){
-	var stockfish = system.spawn('stockfish');
-	var output = "";
-	stockfish.stdout.on('data',data=>{
-		output = data.toString();
-		// console.log(output);
+function getBestMove(fen){
+	return new Promise((res,rej)=>{
+		let board = new mbot.Board(fen);
+		console.log('calculating');
+		console.log(board.toString())
+		board.choosePossibilitesMULTI(3,true).then(e=>{
+			console.log(e);
+			res(e);
+		});
 	});
-	stockfish.stdin.write('isready\n');
-	await wait();
-	stockfish.stdin.write(`position fen ${fen} \n`);
-	stockfish.stdin.write(`go\n`);
-	await wait(5000);
-	try{
-		stockfish.stdin.write(`stop\n`);
-	} catch(e) {}
-	await wait(50);
-	stockfish.kill('SIGINT');
-	let move = output.split(' ');
-	move = move.includes('ponder') ? move[move.length-3] : move[move.length-1];
-	return move.toUpperCase();
 }
 
 function wait(milli=1){

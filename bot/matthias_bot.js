@@ -466,3 +466,4 @@ class Board{
 }
 
 exports.board = new Board;
+exports.Board = Board;

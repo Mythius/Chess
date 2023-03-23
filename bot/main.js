@@ -3,11 +3,13 @@ let b = require('./matthias_bot.js');
 const DEV = false;
 
 if(DEV) console.log(b);
-console.log('Matthias Chess Bot');
-console.log('\td to Display');
-console.log('\tfen {your fen here} to load position')
-console.log('\tm E2E4 to move')
-console.log('\tgo (calculates best move)')
+if(process.argv[2]?.toLowerCase() != 'interface'){
+	console.log('Matthias Chess Bot');
+	console.log('\td to Display');
+	console.log('\tfen {your fen here} to load position')
+	console.log('\tm E2E4 to move')
+	console.log('\tgo (calculates best move)')
+}
 
 async function main(){
 	let command = await c.in('');
