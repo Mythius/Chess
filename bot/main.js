@@ -1,6 +1,6 @@
 let c = require('./iostream.js');
 let b = require('./matthias_bot.js');
-const DEV = true;
+const DEV = false;
 
 if(DEV) console.log(b);
 if(process.argv[2]?.toLowerCase() != 'interface'){

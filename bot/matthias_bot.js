@@ -426,7 +426,7 @@ class Board{
 		} else {
 			for(let moves of ranked_moves){
 				promises.push(new Promise((res,rej)=>{
-					let sub_proc = spawn('node',['brancher.js',depth-1,moves.fen]);
+					let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,moves.fen]);
 					if(log) console.log('starting subproc');
 					let waiting = true;
 					sub_proc.stdout.on('data',data=>{
@@ -434,7 +434,10 @@ class Board{
 						if(waiting) cache[moves.fen].apoints = Number(data.toString());
 						waiting = false;
 						res();
-					})
+					});
+					sub_proc.stderr.on('data',data=>{
+						console.error(`stderr: ${data}`);
+					});
 				}));
 			}
 		}
