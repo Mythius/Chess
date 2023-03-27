@@ -57,6 +57,21 @@ class Piece{
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,0,-1,this.color,false));
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,-1,0,this.color,false));
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,1,0,this.color,false));
+			if(this.color=='w'){
+				let kinggood = b.square(4,7).type=='K' && x==4 && y==7 && !b.isCheck(b.turn);
+				if(b.castle.includes('K') && kinggood && b.square(7,7).type=='R' && !b.square(5,7) && !b.square(6,7)){
+					pos_sqrs.push('O-O');
+				} else if(b.castle.includes('Q') && kinggood && b.square(0,7).type=='R' && !b.square(1,7) && !b.square(2,7) && !b.square(3,7)){
+					pos_sqrs.push('O-O-O');
+				}
+			} else {
+				let kinggood = b.square(4,0).type=='k' && x==4 && y==0;
+				if(b.castle.includes('k') && kinggood && b.square(7,0).type=='r' && !b.square(5,0) && !b.square(6,0)){
+					pos_sqrs.push('O-O');
+				} else if(b.castle.includes('q') && kinggood && b.square(0,0).type=='r' && !b.square(1,0) && !b.square(2,0) && !b.square(3,0)){
+					pos_sqrs.push('O-O-O');
+				}
+			}
 		} else if(to == 'p'){
 			let dy = this.color=='w'?-1:1;
 			let hr = this.color=='w'?6:1;
@@ -67,7 +82,7 @@ class Piece{
 			let r = b.square(x+1,y+dy);
 			if(!f1.type){
 				if(!f2.type && y==hr){
-					pos_sqrs.push({x,y:y+dy*2});
+					pos_sqrs.push({x,y:y+dy*2,enp:A1(x,y+dy)});
 				}
 				if((y+dy)==p){
 					pos_sqrs.push({x,y:y+dy,p:'q'});
@@ -88,6 +103,8 @@ class Piece{
 		function printMap(e){
 			if(e.p){
 				return A1(e) + '=' + e.p;
+			} else if(typeof e == 'string') {
+				return e;
 			} else {
 				return A1(e);
 			}
@@ -107,6 +124,8 @@ class Board{
 		this.stalemate = false;
 		this.checkmate = false;
 		this.apoints;
+		this.castle = 'KQkq';
+		this.enpessant = '-';
 	}
 	loadFEN(fen){
 		this.squares = [];
@@ -126,6 +145,8 @@ class Board{
 			}
 		}
 		this.turn = data[1];
+		this.castle = data[2];
+		this.enpessant = data[3];
 		// cache = {};
 		this.lines = [];
 	}
@@ -164,7 +185,7 @@ class Board{
 		this.forEach((t,x,y)=>{
 			if(t && t.color != c){
 				let moves = t.getPossibleMoves(x,y);
-				moves = moves.map(e=>this.square(e.x,e.y)).filter(e=>e.letter);
+				moves = moves.filter(e=>!(typeof e=='string')).map(e=>this.square(e.x,e.y)).filter(e=>e.letter);
 				for(let piece of moves) pieces_in_danger.push(piece.letter);
 			}
 		});
@@ -216,21 +237,29 @@ class Board{
 		}
 		fen = fen.slice(0,-1) + ' ';
 		fen += this.turn;
-		/*
-			let temp = fen;
-			fen += white.castlePriv.toUpperCase();
-			fen += black.castlePriv.toLowerCase();
-			if(temp == fen) fen += '-';
-			fen += ' ' + (en_pessant ? en_pessant.toString() : '-');
-		*/
+		fen += ' ' + this.castle;
+		fen += ' ' + this.enpessant;
 		return fen;
 	}
 	theorize(move_code,make_move=false){
-		var nb;
-		if(move_code == 'O-O'){
-
-		} else if (move_code == 'O-O-O'){
-
+		var nb = new Board(this.fen);
+		nb.turn = ot(this.turn);
+		if(move_code.toUpperCase() == 'O-O'){
+			let r = (this.turn=='w')?7:0;
+			nb.squares[r][6] = nb.squares[r][4];
+			nb.squares[r][5] = nb.squares[r][7];
+			nb.squares[r][4] = null;
+			nb.squares[r][7] = null;
+			nb.castle = nb.castle.match(/[kq]+/);
+			nb.castle = nb.castle?nb.castle[0]:'';
+		} else if (move_code.toUpperCase() == 'O-O-O'){
+			let r = (this.turn=='w')?7:0;
+			nb.squares[r][2] = nb.squares[r][4];
+			nb.squares[r][3] = nb.squares[r][0];
+			nb.squares[r][4] = null;
+			nb.squares[r][0] = null;
+			nb.castle = nb.castle.match(/[KQ]+/);
+			nb.castle = nb.castle?nb.castle[0]:'';
 		} else if (move_code.includes('=')){
 			const pt = ['n','b','r','q']
 			let p1 = move_code.slice(0,2);
@@ -240,8 +269,6 @@ class Board{
 				console.log('Invalid');
 				return;
 			}
-			nb = new Board(this.fen);
-			nb.turn = ot(this.turn);
 			let a = XY(p1);
 			let b = XY(p2);
 			let npcode = nb.squares[a.y][a.x].color=='w'?p3.toUpperCase():p3.toLowerCase();
@@ -254,8 +281,6 @@ class Board{
 				console.log('Invalid');
 				return;
 			}
-			nb = new Board(this.fen);
-			nb.turn = ot(this.turn);
 			let a = XY(p1);
 			let b = XY(p2);
 			nb.squares[b.y][b.x]=nb.squares[a.y][a.x];
@@ -297,6 +322,8 @@ class Board{
 				for(let xy of t.getPossibleMoves(x,y)){
 					if(xy.p){
 						move_codes.push(pos+A1(xy)+'='+xy.p);
+					} else if(typeof xy == 'string'){
+						move_codes.push(xy);
 					} else {
 						move_codes.push(pos+A1(xy));
 					}
@@ -369,21 +396,27 @@ class Board{
 				return {mc:m.mc,p:cache[m.fen].apoints};
 			});
 		}
-		ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p)
+		let t =this.turn=='w'?.5:-.5;
+		ranked_moves = ranked_moves.map(e=>{
+			if(e.mc.includes('O')){
+				return {mc:e.mc,p:e.p+t};
+			} else return e;
+		})
+		ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p);
 		// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
 		let bm;
 		if(this.turn=='w'){
 			this.apoints = ranked_moves[0].p;
 			this.adepth=depth;
-			this.bm = bm;
 			bm = ranked_moves[0].mc;
+			this.bm = bm;
 			if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
 			return bm;
 		} else {
 			this.apoints = ranked_moves[ranked_moves.length-1].p;
 			this.adepth=depth;
-			this.bm = bm;
 			bm = ranked_moves[ranked_moves.length-1].mc;
+			this.bm = bm;
 			if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
 			return bm;
 		}
@@ -413,7 +446,6 @@ class Board{
 					this.apoints = -1200;
 				}
 				console.log(this.toString());
-				console.log(this.apoints);
 			}
 			return;
 		}
@@ -435,20 +467,27 @@ class Board{
 						waiting = false;
 						res();
 					});
-					sub_proc.stderr.on('data',data=>{
-						console.error(`stderr: ${data}`);
-					});
+					sub_proc.stderr.on('data',err=>{
+						console.log(err.toString());
+						rej('Error');
+					})
 				}));
 			}
 		}
 		return await Promise.all(promises).then(e=>{
+			let t=this.turn=='w'?.5:-.5;
 			if(log) console.log('Recieved All SubProc Responses');
 			if(depth != 1){
 				ranked_moves = ranked_moves.map(m=>{
 					return {mc:m.mc,p:cache[m.fen].apoints};
 				});
 			}
-			ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p)
+			ranked_moves = ranked_moves.map(e=>{
+				if(e.mc.includes('O')){
+					return {mc:e.mc,p:e.p+t};
+				} else return e;
+			})
+			ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p);
 			// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
 			let bm;
 			if(this.turn=='w'){
@@ -466,7 +505,7 @@ class Board{
 				if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
 				return bm;
 			}
-		})
+		});
 	}
 }
 

@@ -579,6 +579,21 @@
 		flip_black = !flip_black;
 	}
 	ChessGame.makeMove = async function(move){
+		if(move.includes('O')){
+			if(turn < 0){ // white
+				if(move == 'O-O'){
+					move = 'E1G1';
+				} else {
+					move = 'E1C1';
+				}
+			} else { // black;
+				if(move == 'O-O'){
+					move = 'E8G8';
+				} else {
+					move = 'E8C8';
+				}
+			}
+		}
 		current_piece = board.getSquareFromCode(move.slice(0,2)).piece;
 		let square = board.getSquareFromCode(move.slice(2,4));
 		let moves = current_piece.getPossibleMoves();
