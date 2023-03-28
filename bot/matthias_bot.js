@@ -15,7 +15,7 @@ class Piece{
 		this.color = (l==l.toUpperCase())?'w':'b';
 		this.board = b;
 	}
-	getPossibleMoves(x,y,log=false){
+	getPossibleMoves(x,y,log=false){ // returns all possible square to move to for this peice
 		let to = this.type.toLowerCase();
 		let b = this.board;
 		let pos_sqrs = [];
@@ -57,6 +57,7 @@ class Piece{
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,0,-1,this.color,false));
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,-1,0,this.color,false));
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,1,0,this.color,false));
+			// castling
 			if(this.color=='w'){
 				let kinggood = b.square(4,7).type=='K' && x==4 && y==7 && !b.isCheck(b.turn);
 				if(b.castle.includes('K') && kinggood && b.square(7,7).type=='R' && !b.square(5,7) && !b.square(6,7)){
@@ -65,7 +66,7 @@ class Piece{
 					pos_sqrs.push('O-O-O');
 				}
 			} else {
-				let kinggood = b.square(4,0).type=='k' && x==4 && y==0;
+				let kinggood = b.square(4,0).type=='k' && x==4 && y==0 && !b.isCheck(b.turn);
 				if(b.castle.includes('k') && kinggood && b.square(7,0).type=='r' && !b.square(5,0) && !b.square(6,0)){
 					pos_sqrs.push('O-O');
 				} else if(b.castle.includes('q') && kinggood && b.square(0,0).type=='r' && !b.square(1,0) && !b.square(2,0) && !b.square(3,0)){
@@ -81,10 +82,10 @@ class Piece{
 			let l = b.square(x-1,y+dy);
 			let r = b.square(x+1,y+dy);
 			if(!f1.type){
-				if(!f2.type && y==hr){
+				if(!f2.type && y==hr){ // calculates pawns moving 2 forwards
 					pos_sqrs.push({x,y:y+dy*2,enp:A1(x,y+dy)});
 				}
-				if((y+dy)==p){
+				if((y+dy)==p){ // calculates pawn promotions
 					pos_sqrs.push({x,y:y+dy,p:'q'});
 					pos_sqrs.push({x,y:y+dy,p:'r'});
 					pos_sqrs.push({x,y:y+dy,p:'n'});
@@ -93,23 +94,23 @@ class Piece{
 					pos_sqrs.push({x,y:y+dy});
 				}
 			}
-			if(l!=-1&&l!=0&&l.color!=this.color){
+			if(l!=-1&&l!=0&&l.color!=this.color){ // calculates pawn takes left
 				pos_sqrs.push({x:x-1,y:y+dy});
 			}
-			if(r!=-1&&r!=0&&r.color!=this.color){
+			if(r!=-1&&r!=0&&r.color!=this.color){ // calculates pawn takes right
 				pos_sqrs.push({x:x+1,y:y+dy});
 			}
 		}
 		function printMap(e){
-			if(e.p){
+			if(e.p){ // if promotion
 				return A1(e) + '=' + e.p;
-			} else if(typeof e == 'string') {
+			} else if(typeof e == 'string') { // if castles return castles
 				return e;
-			} else {
+			} else { // convert squares on x,y to A1 notation
 				return A1(e);
 			}
 		}
-		if(log) console.log(`Moves for ${A1({x,y})} are: `+pos_sqrs.map(printMap).join(', '))
+		if(log) console.log(`Moves for ${A1({x,y})} are: `+pos_sqrs.map(printMap).join(', '));
 		return pos_sqrs;
 	}
 	get letter(){
@@ -213,7 +214,7 @@ class Board{
 			return this.squares[t.y][t.x].getPossibleMoves(t.x,t.y,true);
 		}
 	}
-	get fen(){
+	get fen(){ // gets fen in current position
 		let fen = '';
 		for(let y=0;y<8;y++){
 			var empty_count = 0;
@@ -241,7 +242,7 @@ class Board{
 		fen += ' ' + this.enpessant;
 		return fen;
 	}
-	theorize(move_code,make_move=false){
+	theorize(move_code,make_move=false){ // creates instance of board based on a move from current position
 		var nb = new Board(this.fen);
 		nb.turn = ot(this.turn);
 		if(move_code.toUpperCase() == 'O-O'){
@@ -250,7 +251,7 @@ class Board{
 			nb.squares[r][5] = nb.squares[r][7];
 			nb.squares[r][4] = null;
 			nb.squares[r][7] = null;
-			nb.castle = nb.castle.match(/[kq]+/);
+			nb.castle = nb.castle.match(/[kq]+/); // remove whites castling rights if white castles
 			nb.castle = nb.castle?nb.castle[0]:'';
 		} else if (move_code.toUpperCase() == 'O-O-O'){
 			let r = (this.turn=='w')?7:0;
@@ -258,7 +259,7 @@ class Board{
 			nb.squares[r][3] = nb.squares[r][0];
 			nb.squares[r][4] = null;
 			nb.squares[r][0] = null;
-			nb.castle = nb.castle.match(/[KQ]+/);
+			nb.castle = nb.castle.match(/[KQ]+/); // remove blacks castling rights if black castles
 			nb.castle = nb.castle?nb.castle[0]:'';
 		} else if (move_code.includes('=')){
 			const pt = ['n','b','r','q']
@@ -286,6 +287,7 @@ class Board{
 			nb.squares[b.y][b.x]=nb.squares[a.y][a.x];
 			nb.squares[a.y][a.x]=null;
 		}
+		// TODO: remove castling rights if the rooks move or are taken, or if the king moves
 		if(make_move){
 			// cache = {};
 			this.lines = [];
@@ -297,7 +299,7 @@ class Board{
 	get valid(){
 		return !this.isCheck(ot(this.turn));
 	}
-	get points(){
+	get points(){ // material advantage is calculated
 		const points = {p:1,n:3,b:3,q:9,r:5,k:0};
 		if(this.pts) return this.pts;
 		let wmaterial=0,bmaterial=0;
@@ -316,7 +318,7 @@ class Board{
 	generatePossibilities(log=false){
 		let move_codes = [];
 		this.lines = [];
-		this.forEach((t,x,y)=>{
+		this.forEach((t,x,y)=>{ // for each piece, get all movement squares
 			if(t&&t.color==this.turn){
 				let pos = A1({x,y});
 				for(let xy of t.getPossibleMoves(x,y)){
@@ -331,7 +333,7 @@ class Board{
 			}
 		});
 		let valid_moves = [];
-		for(let mc of move_codes){
+		for(let mc of move_codes){ // for all movements squares, generate a new board if the board is invalid (own's king is in check) board is thrown out, boards saved in hash table (cashe)
 			let nb = this.theorize(mc);
 			if(nb.valid){
 				valid_moves.push(mc);
@@ -345,7 +347,7 @@ class Board{
 			}
 		}
 		if(log) console.log('Moves: '+valid_moves.join(','))
-		if(valid_moves.length == 0){
+		if(valid_moves.length == 0){ // if there are no movement squares the game is over, if king is in check its checkmate else its stalemate
 			if(!this.isCheck(this.turn)){
 				this.stalemate = true;
 				return 'STALEMATE';
@@ -354,9 +356,11 @@ class Board{
 				return 'CHECKMATE';
 			}
 		}
-		// if(log) console.log('Moves: '+move_codes.join(','))
 	}
 	async choosePossibilites(depth=1,log=false){
+		// depth starts from specified depth and counts down to 1, 
+		// if depth is 1, we look at material count
+		// if depth is greater than 0, we use the material count from the board based on the move most likely to be made by our opponent
 		if(depth <= 3){
 			return await this.choosePossibilitesMULTI(depth,log);
 		}
@@ -383,7 +387,7 @@ class Board{
 			}
 			return;
 		}
-		let ranked_moves = this.lines.sort(()=>Math.random()-.5);
+		let ranked_moves = this.lines.sort(()=>Math.random()-.5); // randomize all possible moves to that if there are no best moves any move can occur
 		if(depth == 1){
 			ranked_moves = ranked_moves.map(m=>{
 				return {mc:m.mc,p:cache[m.fen].points.o};
@@ -433,7 +437,7 @@ class Board{
 			return this.bm;
 		}
 		if(this.lines.length == 0){
-			end_info = this.generatePossibilities();
+			end_info = this.generatePossibilities(); // store all possible newxt moves in this.lines array
 		}
 		if(end_info){
 			console.log('END SEEN:'+end_info)
@@ -441,7 +445,7 @@ class Board{
 				this.apoints = {w:0,b:0,o:0}
 			} else if(end_info == 'CHECKMATE'){
 				if(this.turn=='b'){
-					this.apoints = 1200;
+					this.apoints = 1200; // lots of insentive to checkmate / avoid checkmate
 				} else {
 					this.apoints = -1200;
 				}
@@ -456,9 +460,10 @@ class Board{
 				return {mc:m.mc,p:cache[m.fen].points.o};
 			});
 		} else {
+			let cur_fen = moves.fen;
 			for(let moves of ranked_moves){
 				promises.push(new Promise((res,rej)=>{
-					let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,moves.fen]);
+					let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,cur_fen]); // spawn a subproccess for each variation of board
 					if(log) console.log('starting subproc');
 					let waiting = true;
 					sub_proc.stdout.on('data',data=>{
@@ -474,7 +479,7 @@ class Board{
 				}));
 			}
 		}
-		return await Promise.all(promises).then(e=>{
+		return await Promise.all(promises).then(e=>{ // wait for the value of all subproccess before sorting and choosing a move
 			let t=this.turn=='w'?.5:-.5;
 			if(log) console.log('Recieved All SubProc Responses');
 			if(depth != 1){
@@ -482,23 +487,25 @@ class Board{
 					return {mc:m.mc,p:cache[m.fen].apoints};
 				});
 			}
-			ranked_moves = ranked_moves.map(e=>{
+			ranked_moves = ranked_moves.map(e=>{ // add a half point incentive to castle
 				if(e.mc.includes('O')){
 					return {mc:e.mc,p:e.p+t};
 				} else return e;
 			})
-			ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p);
+			ranked_moves = ranked_moves.sort((a,b)=>b.p-a.p); 
+			// sort moves in order of points (all of the best moves for white at beginning and best moves for black at the end)
+
 			// console.log(`Ranked Moves (depth:${depth}): `+JSON.stringify(ranked_moves));
 			let bm;
 			if(this.turn=='w'){
-				this.apoints = ranked_moves[0].p;
+				this.apoints = ranked_moves[0].p; // we will assume white always makes the best move on blacks turn (0th item in array)
 				this.adepth=depth;
 				this.bm = bm;
 				bm = ranked_moves[0].mc;
 				if(depth!=1 && log) console.log(`Best Move (depth ${depth}): ${bm}, points:${this.apoints}`);
 				return bm;
 			} else {
-				this.apoints = ranked_moves[ranked_moves.length-1].p;
+				this.apoints = ranked_moves[ranked_moves.length-1].p; // we will always assume black makes the best move on whites turn (last item of array)
 				this.adepth=depth;
 				this.bm = bm;
 				bm = ranked_moves[ranked_moves.length-1].mc;
