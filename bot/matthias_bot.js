@@ -15,7 +15,7 @@ class Piece{
 		this.color = (l==l.toUpperCase())?'w':'b';
 		this.board = b;
 	}
-	getPossibleMoves(x,y,log=false){ // returns all possible square to move to for this peice
+	getPossibleMoves(x,y,castle=true,log=false){ // returns all possible square to move to for this peice
 		let to = this.type.toLowerCase();
 		let b = this.board;
 		let pos_sqrs = [];
@@ -58,19 +58,21 @@ class Piece{
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,-1,0,this.color,false));
 			pos_sqrs = pos_sqrs.concat(b.getSquares(x,y,1,0,this.color,false));
 			// castling
-			if(this.color=='w'){
-				let kinggood = b.square(4,7).type=='K' && x==4 && y==7 && !b.isCheck(b.turn);
-				if(b.castle.includes('K') && kinggood && b.square(7,7).type=='R' && !b.square(5,7) && !b.square(6,7)){
-					pos_sqrs.push('O-O');
-				} else if(b.castle.includes('Q') && kinggood && b.square(0,7).type=='R' && !b.square(1,7) && !b.square(2,7) && !b.square(3,7)){
-					pos_sqrs.push('O-O-O');
-				}
-			} else {
-				let kinggood = b.square(4,0).type=='k' && x==4 && y==0 && !b.isCheck(b.turn);
-				if(b.castle.includes('k') && kinggood && b.square(7,0).type=='r' && !b.square(5,0) && !b.square(6,0)){
-					pos_sqrs.push('O-O');
-				} else if(b.castle.includes('q') && kinggood && b.square(0,0).type=='r' && !b.square(1,0) && !b.square(2,0) && !b.square(3,0)){
-					pos_sqrs.push('O-O-O');
+			if(castle){
+				if(this.color=='w'){
+					let kinggood = b.square(4,7).type=='K' && x==4 && y==7;
+					if(b.castle.includes('K') && kinggood && b.square(7,7).type=='R' && !b.square(5,7) && !b.square(6,7) && !b.isCheck(b.turn)){
+						pos_sqrs.push('O-O');
+					} else if(b.castle.includes('Q') && kinggood && b.square(0,7).type=='R' && !b.square(1,7) && !b.square(2,7) && !b.square(3,7) && !b.isCheck(b.turn)){
+						pos_sqrs.push('O-O-O');
+					}
+				} else {
+					let kinggood = b.square(4,0).type=='k' && x==4 && y==0 && !b.isCheck(b.turn);
+					if(b.castle.includes('k') && kinggood && b.square(7,0).type=='r' && !b.square(5,0) && !b.square(6,0) && !b.isCheck(b.turn)){
+						pos_sqrs.push('O-O');
+					} else if(b.castle.includes('q') && kinggood && b.square(0,0).type=='r' && !b.square(1,0) && !b.square(2,0) && !b.square(3,0) && !b.isCheck(b.turn)){
+						pos_sqrs.push('O-O-O');
+					}
 				}
 			}
 		} else if(to == 'p'){
@@ -185,7 +187,7 @@ class Board{
 		if(c!='white'&&c!='w') k='k';
 		this.forEach((t,x,y)=>{
 			if(t && t.color != c){
-				let moves = t.getPossibleMoves(x,y);
+				let moves = t.getPossibleMoves(x,y,false);
 				moves = moves.filter(e=>!(typeof e=='string')).map(e=>this.square(e.x,e.y)).filter(e=>e.letter);
 				for(let piece of moves) pieces_in_danger.push(piece.letter);
 			}
@@ -211,7 +213,7 @@ class Board{
 		let t = XY(A1);
 		console.log('possiblities from: '+A1)
 		if(this.square(t.x,t.y).type){
-			return this.squares[t.y][t.x].getPossibleMoves(t.x,t.y,true);
+			return this.squares[t.y][t.x].getPossibleMoves(t.x,t.y,true,true);
 		}
 	}
 	get fen(){ // gets fen in current position
@@ -460,8 +462,8 @@ class Board{
 				return {mc:m.mc,p:cache[m.fen].points.o};
 			});
 		} else {
-			let cur_fen = moves.fen;
 			for(let moves of ranked_moves){
+				let cur_fen = moves.fen;
 				promises.push(new Promise((res,rej)=>{
 					let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,cur_fen]); // spawn a subproccess for each variation of board
 					if(log) console.log('starting subproc');
