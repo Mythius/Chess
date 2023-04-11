@@ -428,7 +428,7 @@ class Board{
 		}
 	}
 	async choosePossibilitesMULTI(depth=1,log=false){
-		if(depth > 3){
+		if(false){
 			this.choosePossibilites(depth,log);
 			return;
 		}
@@ -465,11 +465,12 @@ class Board{
 			for(let moves of ranked_moves){
 				let cur_fen = moves.fen;
 				promises.push(new Promise((res,rej)=>{
-					let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,cur_fen]); // spawn a subproccess for each variation of board
-					if(log) console.log('starting subproc');
+					//let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,cur_fen]); // spawn a subproccess for each variation of board
+					let sub_proc = spawn(__dirname+'\\MatthiasBot.exe',[depth-1,cur_fen]); // spawn a subproccess for each variation of board
+					//if(log) console.log('starting MatthiasBot.exe for: '+moves.mc);
 					let waiting = true;
 					sub_proc.stdout.on('data',data=>{
-						if(log && waiting) console.log('Recieved From SubProc: '+Number(data.toString()));
+						if(log && waiting) console.log(`Recieved From SubProc (${moves.mc}) `+Number(data.toString()));
 						if(waiting) cache[moves.fen].apoints = Number(data.toString());
 						waiting = false;
 						res();
