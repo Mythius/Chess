@@ -107,12 +107,14 @@ class Piece{
 				}
 			}
 			if(r!=-1&&r!=0&&r.color!=this.color){ // calculates pawn takes rightif((y+dy)==p){
-				pos_sqrs.push({x:x+1,y:y+dy,p:'q'});
-				pos_sqrs.push({x:x+1,y:y+dy,p:'r'});
-				pos_sqrs.push({x:x+1,y:y+dy,p:'n'});
-				pos_sqrs.push({x:x+1,y:y+dy,p:'b'});
-			} else {
-				pos_sqrs.push({x:x+1,y:y+dy});
+				if((y+dy)==p){
+					pos_sqrs.push({x:x+1,y:y+dy,p:'q'});
+					pos_sqrs.push({x:x+1,y:y+dy,p:'r'});
+					pos_sqrs.push({x:x+1,y:y+dy,p:'n'});
+					pos_sqrs.push({x:x+1,y:y+dy,p:'b'});
+				} else {
+					pos_sqrs.push({x:x+1,y:y+dy});
+				}
 			}
 		}
 		function printMap(e){
