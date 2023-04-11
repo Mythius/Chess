@@ -97,9 +97,21 @@ class Piece{
 				}
 			}
 			if(l!=-1&&l!=0&&l.color!=this.color){ // calculates pawn takes left
-				pos_sqrs.push({x:x-1,y:y+dy});
+				if((y+dy)==p){
+					pos_sqrs.push({x:x-1,y:y+dy,p:'q'});
+					pos_sqrs.push({x:x-1,y:y+dy,p:'r'});
+					pos_sqrs.push({x:x-1,y:y+dy,p:'n'});
+					pos_sqrs.push({x:x-1,y:y+dy,p:'b'});
+				} else {
+					pos_sqrs.push({x:x-1,y:y+dy});
+				}
 			}
-			if(r!=-1&&r!=0&&r.color!=this.color){ // calculates pawn takes right
+			if(r!=-1&&r!=0&&r.color!=this.color){ // calculates pawn takes rightif((y+dy)==p){
+				pos_sqrs.push({x:x+1,y:y+dy,p:'q'});
+				pos_sqrs.push({x:x+1,y:y+dy,p:'r'});
+				pos_sqrs.push({x:x+1,y:y+dy,p:'n'});
+				pos_sqrs.push({x:x+1,y:y+dy,p:'b'});
+			} else {
 				pos_sqrs.push({x:x+1,y:y+dy});
 			}
 		}
@@ -467,7 +479,7 @@ class Board{
 				promises.push(new Promise((res,rej)=>{
 					//let sub_proc = spawn('node',[__dirname+'\\brancher.js',depth-1,cur_fen]); // spawn a subproccess for each variation of board
 					let sub_proc = spawn(__dirname+'\\MatthiasBot.exe',[depth-1,cur_fen]); // spawn a subproccess for each variation of board
-					//if(log) console.log('starting MatthiasBot.exe for: '+moves.mc);
+					//if(log) console.log('starting MatthiasBot.exe for: '+`(${moves.mc})`+cur_fen);
 					let waiting = true;
 					sub_proc.stdout.on('data',data=>{
 						if(log && waiting) console.log(`Recieved From SubProc (${moves.mc}) `+Number(data.toString()));

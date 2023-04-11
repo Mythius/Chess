@@ -113,7 +113,7 @@
 			this.type = type;
 			this.promoted = false;
 		}
-		async moveTo(square,setup=false,record=true){
+		async moveTo(square,setup=false,record=true,promote=''){
 			let dat = '';
 			if(!square){
 				console.error('Tried to Move to Invalid Square');
@@ -165,7 +165,15 @@
 			}
 			if(this.type == 'p' && square.y == (7-this.side.homeRow) && !this.promoted){
 				this.promoted = true;
-				let type = await promotion(this,square);
+				let type;
+				if(promote){
+					type = promote.slice(-1);
+					let src = `assets/${this.color[0]+type}.svg`;
+					console.log(src);
+					this.element.src = src;
+				} else {
+					type = await promotion(this,square);
+				}
 				moves[moves.length-1] += '=' + type;
 				this.type = type;
 			}
@@ -594,10 +602,14 @@
 				}
 			}
 		}
+		let promotion = '';
+		if(move.includes('=')){
+			promotion = move.slice(-2);
+		}
 		current_piece = board.getSquareFromCode(move.slice(0,2)).piece;
 		let square = board.getSquareFromCode(move.slice(2,4));
 		let moves = current_piece.getPossibleMoves();
-		await current_piece.moveTo(square);
+		await current_piece.moveTo(square,false,true,promotion);
 		if(current_piece.side.isInCheck()){
 			goBack();
 		} else {

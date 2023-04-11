@@ -63,9 +63,7 @@ function getBestMove(fen){
 	return new Promise((res,rej)=>{
 		let board = new mbot.Board(fen);
 		console.log('calculating');
-		// console.log(board.toString())
 		board.choosePossibilitesMULTI(4,true).then(e=>{
-			console.log(e);
 			res(e);
 		});
 	});
