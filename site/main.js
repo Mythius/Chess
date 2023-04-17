@@ -77,10 +77,12 @@ function toggleClock(){
 }
 
 function compMove(){
+	obj('#compmove').disabled = true;
 	socket.emit('calcMove',ChessGame.board.getFEN());
 }
 
 socket.on('move',move=>{
+	obj('#compmove').disabled = false;
 	ChessGame.makeMove(move);
 });
 

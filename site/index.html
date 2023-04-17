@@ -50,6 +50,9 @@
 			padding: 5px;
 			margin-bottom: 5px;
 		}
+		button:disabled{
+			color: gray;
+		}
 		.promotion{
 			/*width: 60px;*/
 			position: absolute;
@@ -79,14 +82,14 @@
 		<canvas width=600 height=600></canvas>
 		<div id=right>
 			<button onclick="start()">Start</button>
-			<button onclick="flip()">Flip Board</button>
+			<button id=compmove onclick="compMove()">Computer Move</button>
 			<button id=toggle onclick="expand()">More</button>
 			<expand>
 				<button onclick="ChessGame.showCoords=!ChessGame.showCoords">Toggle Coords</button>
+				<button onclick="flip()">Flip Board</button>
 				<button onclick="toggleClock()">Toggle Clock</button>
 				<button onclick="ChessGame.goBack(true)">Go Back</button>
 				<button onclick="ChessGame.flipBlack()">Flip Black</button>
-				<button onclick="compMove()">Computer Move</button>
 				<button onclick="copyFENtoClip()">Copy FEN</button>
 				<button onclick="getFEN()">Paste FEN</button>
 				<button onclick="loadRandomPuzzle()">Load Puzzle</button>
@@ -94,6 +97,21 @@
 			<p id=gamedata></p>
 		</div>
 	</div>
+	<script>
+		function resize(){
+			if(window.innerWidth < window.innerHeight){
+				obj('#game').style.display = 'block';
+				obj('#right').style.width = '600px';
+				obj('#compmove').style.fontSize = '40px';
+			} else {
+				obj('#game').style.display = 'grid';
+				obj('#compmove').style.fontSize = '14px';
+				obj('#right').style.width = '280px';
+			}
+		}
+		resize();
+		window.onresize = resize;
+	</script>
 	<script src="main.js"></script>
 </body>
 </html>
