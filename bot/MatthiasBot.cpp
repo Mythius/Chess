@@ -127,6 +127,7 @@ public:
     Move fromString(string move_code);
     bool valid();
     float points();
+    void clearLines();
     char generatePossibilites(bool log = false);
     Line* choosePossibilites(int depth = 1, bool log = false);
     Line* choosePossibilitesMULTI(int depth = 1, bool log = false);
@@ -479,6 +480,7 @@ string Board::getFen() {
 }
 void Board::theorize(Board* nb,Move m, bool make_move) {
     nb->loadFen(getFen());
+    nb->clearLines();
     nb->turn = ot(turn);
     string rem_castle = ot(turn) == 'w' ? "KQ" : "kq";
     if (m.type == oo) {
@@ -530,7 +532,6 @@ void Board::theorize(Board* nb,Move m, bool make_move) {
                 }
             }
         }
-        
     }
 }
 Move Board::fromString(string move_code) {
@@ -599,6 +600,17 @@ float Board::points() {
     }
     savedpoints = result;
     return result;
+}
+void Board::clearLines() {
+    for (Line l : lines) {
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                Piece* p = l.board.getSquare(x, y)->piece;
+                if (p) delete p;
+            }
+        }
+    }
+    lines.clear();
 }
 char Board::generatePossibilites(bool log) {
     if (nopossible != 'x') {
@@ -768,7 +780,7 @@ Line* Board::choosePossibilites(int depth, bool log) {
             }
         }
     }
-    lines.clear();
+    clearLines();
     return (turn == 'w') ? bestwhite : bestblack;
 }
 

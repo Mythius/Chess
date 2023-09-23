@@ -16,6 +16,7 @@ setInterval(e=>{
 },1000/30);
 
 function start(){
+	obj('#start').disabled = true;
 	ChessGame.stop();
 	setTimeout(()=>{
 		black_time = 10 * 60 * 1000/30;
