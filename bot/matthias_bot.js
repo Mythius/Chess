@@ -1,4 +1,5 @@
 const {spawn} = require('child_process');
+const OpeningsBook = require('./openings.json');
 const A1 = t => String.fromCharCode(t.x+65)+(8-t.y);
 const XY = A1 => {return{x:A1[0].toUpperCase().charCodeAt(0)-65,y:7-(Number(A1[1])-1)}};
 const ot = t => t=='w'?'b':'w';
@@ -8,6 +9,8 @@ const ot = t => t=='w'?'b':'w';
 // 5b2/1k1P3p/p1p5/1p6/4Q3/1K2pPP1/P2N2q1/R1N5 w - - almost promotion
 
 var cache = {};
+
+
 
 class Piece{
 	constructor(l,b){
@@ -442,6 +445,13 @@ class Board{
 		}
 	}
 	async choosePossibilitesMULTI(depth=1,log=false){
+		let fen = this.fen.split(' ').slice(0,3).join(' ');
+		if(fen in OpeningsBook){
+			console.log('BOOK MOVE: '+OpeningsBook[fen]);
+			return OpeningsBook[fen];
+		} else {
+			console.log(`NF: "${fen}"`);
+		}
 		if(false){
 			this.choosePossibilites(depth,log);
 			return;
