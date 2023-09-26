@@ -32,8 +32,8 @@ function msm(milli){
 	return `${minutes}:${('00'+seconds).slice(-2)}<br>`;
 }
 
-Touch.init(data=>{
-	console.log(data);
+Touch.init((data,e)=>{
+	if(e.target != canvas) return;
 	mouse.pos.x = data.pos.x;
 	mouse.pos.y = data.pos.y;
 	mouse.down = true;
