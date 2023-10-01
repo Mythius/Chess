@@ -614,10 +614,10 @@
 			goBack();
 		} else {
 			board_instances.push(board.getFEN());
+			audio.play('assets/click.wav',false,.5);
+			current_piece = null;
+			turn *= -1;
 		}
-		audio.play('assets/click.wav',false,.5);
-		current_piece = null;
-		turn *= -1;
 		mouse.down = false;
 	}
 	ChessGame.goBack = goBack;
