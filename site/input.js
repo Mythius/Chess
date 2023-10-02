@@ -130,7 +130,7 @@ class Touch{
         let np = mouse.transformPos(e);
         this.pos.x = np.x;
         this.pos.y = np.y;
-        this.onmove(this,e);
+        this.onmove(this);
     }
     end(e){
         let np = mouse.transformPos(e);
