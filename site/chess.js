@@ -326,7 +326,7 @@
 			fen += white.castlePriv.toUpperCase();
 			fen += black.castlePriv.toLowerCase();
 			if(temp == fen) fen += '-';
-			fen += ' ' + (en_pessant ? en_pessant.toString() : '-');
+			fen += ' ' + (en_pessant ? en_pessant.toString().toLowerCase() : '-');
 			return fen;
 		}
 		// EXAMPLE FEN: rnbqkbnr/ppp1pppp/8/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -
@@ -446,8 +446,8 @@
 					goBack();
 				} else {
 					turn *= -1;
-					audio.play('assets/click.wav',false,.5);
 					board_instances.push(board.getFEN());
+					audio.play('assets/click.wav',false,.5);
 				}
 				current_piece = null;
 				mouse.down = false;
@@ -613,10 +613,10 @@
 		if(current_piece.side.isInCheck()){
 			goBack();
 		} else {
+			turn *= -1;
 			board_instances.push(board.getFEN());
 			audio.play('assets/click.wav',false,.5);
 			current_piece = null;
-			turn *= -1;
 		}
 		mouse.down = false;
 	}

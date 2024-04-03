@@ -97,3 +97,11 @@ function loadRandomPuzzle(){
 	let r = random(0,puzzles.length-1);
 	ChessGame.board.loadFEN(puzzles[r]);
 }
+
+function downloadPGN(){
+	socket.emit('topgn',ChessGame.instances.join(','));
+}
+
+socket.on('pgn',data=>{
+	download('game1.pgn',data);
+});

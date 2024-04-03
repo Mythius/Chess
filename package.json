@@ -4,6 +4,7 @@
   "description": "Chessgame with stockfish",
   "main": "index.js",
   "dependencies": {
+    "chess.js": "^1.0.0-beta.8",
     "express": "^4.17.1",
     "socket.io": "^4.6.1"
   },

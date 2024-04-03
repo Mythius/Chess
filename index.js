@@ -5,6 +5,7 @@ var io = require('socket.io')(http);
 var fs = require('fs');
 var system = require('child_process');
 var mbot = require('./bot/matthias_bot.js');
+var pgn = require('./fen_to_pgn.js');
 
 var file = {
 	save: function(name,text){
@@ -57,6 +58,9 @@ io.on('connection',socket=>{
 			socket.emit('move',move);
 		});
 	});
+	socket.on('topgn',fenstr=>{
+		socket.emit('pgn',pgn.toPGN(fenstr));
+	})
 });
 
 function getBestMove(fen){
