@@ -314,6 +314,7 @@ void Board::loadFen(string fen) {
 
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
+            if (squares[y][x].piece) delete squares[y][x].piece;
             XY pos = { x,y };
             Square s;
             s.pos = pos;
@@ -504,9 +505,11 @@ void Board::theorize(Board* nb,Move m, bool make_move) {
         char promotion = pt[m.type - 4];
         promotion = (turn == 'w') ? toupper(promotion) : promotion;
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = new Piece(promotion,nb);
+        //delete nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
     }
     else {
+        if (nb->getSquare(m.s->pos.x, m.s->pos.y)->piece) delete nb->getSquare(m.s->pos.x, m.s->pos.y)->piece;
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
         if (true) { // REMOVE CASTLE RIGHTS
