@@ -139,13 +139,13 @@ class Piece{
 
 class Board{
 	constructor(fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -'){
-		this.loadFEN(fen)
 		this.lines = [];
 		this.stalemate = false;
 		this.checkmate = false;
 		this.apoints;
 		this.castle = 'KQkq';
 		this.enpessant = '-';
+		this.loadFEN(fen);
 	}
 	loadFEN(fen){
 		this.squares = [];

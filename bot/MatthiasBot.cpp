@@ -56,7 +56,7 @@ void removeSubstr(string* s, string substr) {
     }
 }
 
-Move getMove(Square* s,Square* f) {
+Move getMove(Square* s, Square* f) {
     Move m;
     m.s = s;
     m.f = f;
@@ -98,12 +98,13 @@ public:
     Board* board = nullptr;
     Piece();
     Piece(char l, Board* b);
-    vector<Move> getPossibleMoves(int x, int y,bool castles=true, bool log = false);
+    vector<Move> getPossibleMoves(int x, int y, bool castles = true, bool log = false);
 };
 
 class Board {
 private:
-    float savedpoints = NULL;
+    float savedpoints = 0;
+    bool usedSavedPoints = false;
 public:
     char nopossible = 'x';
     vector<Line> lines;
@@ -123,7 +124,7 @@ public:
     void getSquares(vector<Move>* result, int x, int y, int dx, int dy, char c, bool mult);
     vector<Move> getPossibleFor(string a1);
     string getFen();
-    void theorize(Board* b,Move m, bool make_move = false);
+    void theorize(Board* b, Move m, bool make_move = false);
     Move fromString(string move_code);
     bool valid();
     float points();
@@ -149,7 +150,7 @@ Piece::Piece(char l, Board* b) {
     color = isupper(l) ? 'w' : 'b';
     board = b;
 }
-vector<Move> Piece::getPossibleMoves(int x, int y,bool castles, bool log) {
+vector<Move> Piece::getPossibleMoves(int x, int y, bool castles, bool log) {
     char to = tolower(type);
     vector<Move> arr;
     vector<Move>* result = &arr;
@@ -237,17 +238,17 @@ vector<Move> Piece::getPossibleMoves(int x, int y,bool castles, bool log) {
         Square* r = board->getSquare(x + 1, y + dy);
         if (f1->piece == nullptr) {
             if (y + dy == p) {
-                Move fq = getMove(f1,f); fq.type = pq; result->push_back(fq);
-                Move fr = getMove(f1,f); fr.type = pr; result->push_back(fr);
-                Move fn = getMove(f1,f); fn.type = pn; result->push_back(fn);
-                Move fb = getMove(f1,f); fb.type = pb; result->push_back(fb);
+                Move fq = getMove(f1, f); fq.type = pq; result->push_back(fq);
+                Move fr = getMove(f1, f); fr.type = pr; result->push_back(fr);
+                Move fn = getMove(f1, f); fn.type = pn; result->push_back(fn);
+                Move fb = getMove(f1, f); fb.type = pb; result->push_back(fb);
             }
             else {
-                Move m = getMove(f1,f);
+                Move m = getMove(f1, f);
                 result->push_back(m);
             }
-            if (y==hr && f2->piece == nullptr) {
-                Move m = getMove(f2,f);
+            if (y == hr && f2->piece == nullptr) {
+                Move m = getMove(f2, f);
                 m.type = enp;
                 result->push_back(m);
             }
@@ -279,7 +280,7 @@ vector<Move> Piece::getPossibleMoves(int x, int y,bool castles, bool log) {
     }
     if (log) {
         XY sp = { x,y };
-        int size = (int) result->size();
+        int size = (int)result->size();
         cout << "Moves for " << A1(sp) << " are (" << size << "): ";
         for (int i = 0; i < size; i++) {
             cout << moveToString(result->at(i)) << " ";
@@ -296,12 +297,12 @@ struct ThreadData {
 };
 
 void calculateBoard(ThreadData d) {
-    Line* l = d.b->choosePossibilites(d.d,false);
+    Line* l = d.b->choosePossibilites(d.d, false);
     *d.result = l->eval;
     cout << "Calculated!" << endl;
 }
 
-Board::Board() { 
+Board::Board() {
     lines.clear();
     apoints = 0;
 }
@@ -340,9 +341,9 @@ void Board::loadFen(string fen) {
     turn = fen[i++];
     fen = fen.substr(++i, fen.size()); // cut off everything until here
     castle = fen.substr(0, fen.find(' '));
-    removeSubstr(&fen, castle+" ");
-    int end = (int) fen.find(' ');
-    end = end == string::npos ? (int) fen.size() : end;
+    removeSubstr(&fen, castle + " ");
+    int end = (int)fen.find(' ');
+    end = end == string::npos ? (int)fen.size() : end;
     string enpcode = fen.substr(0, end);
     nopossible = 'x';
     lines.clear();
@@ -353,7 +354,7 @@ void Board::loadFen(string fen) {
         enpessent = { -1,-1 };
     }
 }
-Square* Board::getSquare(int x,int y) {
+Square* Board::getSquare(int x, int y) {
     if (x > 7 || x < 0 || y > 7 || y < 0) {
         return nullptr;
     }
@@ -391,7 +392,7 @@ bool Board::isCheck(char c) {
             Square* s = getSquare(x, y);
             if (s == nullptr || ivs(*s)) continue;
             if (s->piece != nullptr && s->piece->color != c) {
-                vector<Move> moves = s->piece->getPossibleMoves(x, y,false);
+                vector<Move> moves = s->piece->getPossibleMoves(x, y, false);
                 for (int i = 0; i < moves.size(); i++) {
                     if (moves[i].s->piece != nullptr) {
                         in_danger.push_back(moves[i].s->piece->type);
@@ -417,13 +418,13 @@ void Board::getSquares(vector<Move>* result, int x, int y, int dx, int dy, char 
                 break;
             }
             else {
-                Move m = getMove(s,f);
+                Move m = getMove(s, f);
                 result->push_back(m);
                 break;
             }
         }
         else {
-            Move m = getMove(s,f);
+            Move m = getMove(s, f);
             result->push_back(m);
         }
     }
@@ -470,7 +471,7 @@ string Board::getFen() {
     fen += castle;
     fen.push_back(' ');
     string enpc = A1(enpessent);
-    if (enpessent.x==-1) {
+    if (enpessent.x == -1) {
         fen.push_back('-');
     }
     else {
@@ -478,7 +479,7 @@ string Board::getFen() {
     }
     return fen;
 }
-void Board::theorize(Board* nb,Move m, bool make_move) {
+void Board::theorize(Board* nb, Move m, bool make_move) {
     nb->loadFen(getFen());
     nb->clearLines();
     nb->turn = ot(turn);
@@ -489,9 +490,9 @@ void Board::theorize(Board* nb,Move m, bool make_move) {
         nb->squares[r][5].piece = nb->squares[r][7].piece;
         nb->squares[r][4].piece = nullptr;
         nb->squares[r][7].piece = nullptr;
-        removeSubstr(&nb->castle,rem_castle);
+        removeSubstr(&nb->castle, rem_castle);
     }
-    else if(m.type == ooo){
+    else if (m.type == ooo) {
         int r = turn == 'w' ? 0 : 7;
         nb->squares[r][6].piece = nb->squares[r][4].piece;
         nb->squares[r][5].piece = nb->squares[r][7].piece;
@@ -503,10 +504,12 @@ void Board::theorize(Board* nb,Move m, bool make_move) {
         char pt[] = { 'n','r','b','q' };
         char promotion = pt[m.type - 4];
         promotion = (turn == 'w') ? toupper(promotion) : promotion;
-        nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = new Piece(promotion,nb);
+        nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = new Piece(promotion, nb);
+        delete nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
     }
     else {
+        if (nb->getSquare(m.s->pos.x, m.s->pos.y)->piece) delete nb->getSquare(m.s->pos.x, m.s->pos.y)->piece;
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
         if (true) { // REMOVE CASTLE RIGHTS
@@ -581,7 +584,10 @@ bool Board::valid() {
     return !isCheck(ot(turn));
 }
 float Board::points() {
-    if (savedpoints != NULL) return savedpoints;
+    if (usedSavedPoints) {
+        cout << "THIS CODE WORKS" << endl;
+        return savedpoints;
+    }
     float result = 0.0;
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -599,6 +605,7 @@ float Board::points() {
         }
     }
     savedpoints = result;
+    usedSavedPoints = true;
     return result;
 }
 void Board::clearLines() {
@@ -607,6 +614,7 @@ void Board::clearLines() {
             for (int x = 0; x < 8; x++) {
                 Piece* p = l.board.getSquare(x, y)->piece;
                 if (p) delete p;
+                l.board.getSquare(x, y)->piece = nullptr;
             }
         }
     }
@@ -643,7 +651,7 @@ char Board::generatePossibilites(bool log) {
             continue;
         }
         Line l;
-        theorize(&l.board,moves[i], false);
+        theorize(&l.board, moves[i], false);
         l.move = moves[i];
         if (l.board.valid()) {
             lines.push_back(l);
@@ -674,7 +682,7 @@ Line* Board::choosePossibilites(int depth, bool log) {
     Line* bestwhite;
     Line* bestblack;
     Line* temp;
-    int ixwhite=0, ixblack=0;
+    int ixwhite = 0, ixblack = 0;
     bestwhite = nullptr;
     bestblack = nullptr;
     char end_info;
@@ -685,14 +693,14 @@ Line* Board::choosePossibilites(int depth, bool log) {
         end_info = nopossible;
     }
     if (end_info != '0') {
-        if(log) cout << "END SEEN: ";
+        if (log) cout << "END SEEN: ";
         if (end_info == 's') {
             apoints = 0;
-            if(log) cout << "STALEMATE" << endl;
+            if (log) cout << "STALEMATE" << endl;
         }
         else if (end_info == 'c') {
             apoints = turn == 'b' ? 1200 : -1200;
-            if(log) cout << "CHECKMATE" << endl;
+            if (log) cout << "CHECKMATE" << endl;
         }
         return nullptr;
     }
@@ -707,7 +715,7 @@ Line* Board::choosePossibilites(int depth, bool log) {
         else {
             //if (depth < 3) {
             //if (depth < 4) {
-            if(true){
+            if (true) {
                 temp = lines[i].board.choosePossibilites(depth - 1, log);
                 lines[i].eval += lines[i].board.apoints;
             }
@@ -717,7 +725,7 @@ Line* Board::choosePossibilites(int depth, bool log) {
                 td.d = depth - 1;
                 td.result = &lines[i].eval;
                 threads.push_back(thread(calculateBoard, td));
-                if(log) cout << "Started Thread" << endl;
+                if (log) cout << "Started Thread" << endl;
             }
         }
         if (lines[i].move.type == oo || lines[i].move.type == ooo) {
@@ -814,7 +822,7 @@ int main(int argc, char** argv) {
         // cout << "Depth: " << depth << endl;
        //  cout << "Fen: " << fen << endl;
         BOARD->loadFen(fen);
-        Line *l = BOARD->choosePossibilites(depth);
+        Line* l = BOARD->choosePossibilites(depth);
         // cout << moveToString(l->move);
         if (l == nullptr) {
             cout << BOARD->apoints << endl;
@@ -877,14 +885,14 @@ int main(int argc, char** argv) {
                 BOARD->loadFen(command);
             }
             else if (command.find("m ") != string::npos) {
-                removeSubstr(&command,"m ");
+                removeSubstr(&command, "m ");
                 cout << "Moving Piece: " << moveToString(BOARD->fromString(command)) << endl;
-                BOARD->theorize(BOARD,BOARD->fromString(command), true);
+                BOARD->theorize(BOARD, BOARD->fromString(command), true);
             }
             else if (command.find("best ") != string::npos) {
                 removeSubstr(&command, "best ");
                 BOARD->nopossible = 'x';
-                Line* m = BOARD->choosePossibilites(command[0]-'0', true);
+                Line* m = BOARD->choosePossibilites(command[0] - '0', true);
                 cout << "Best Move: " << moveToString(m->move) << endl;
             }
             else {
