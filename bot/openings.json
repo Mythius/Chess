@@ -19,5 +19,9 @@
   "rnbqkbnr/ppp1pppp/8/3p4/3P4/2N4P/PPP1PPP1/R1BQKBNR w KQkq": "C7C5",
   "rnbqkb1r/pp2pppp/5n2/2Pp4/8/2N4P/PPP1PPP1/R1BQKBNR b KQkq": "D5D4",
   "rnbqkbnr/pppp1ppp/8/4p3/8/1P6/P1PPPPPP/RNBQKBNR w KQkq": "C1B2",
-  "rnbqk1nr/pppp1ppp/3b4/4p3/8/1P6/PBPPPPPP/RN1QKBNR w KQkq": "G1F3"
+  "rnbqk1nr/pppp1ppp/3b4/4p3/8/1P6/PBPPPPPP/RN1QKBNR w KQkq": "G1F3",
+  "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq": "E4D5",
+  "rnb1kbnr/ppp1pppp/8/3q4/8/8/PPPP1PPP/RNBQKBNR w KQkq": "B1C3",
+  "r1bqkb1r/ppp2ppp/2n5/3np1N1/2B5/8/PPPP1PPP/RNBQK2R w KQkq": "G5F7",
+  "r1bq1b1r/ppp2kpp/2n5/3np3/2B5/8/PPPP1PPP/RNBQK2R w KQ": "D1F3"
 }

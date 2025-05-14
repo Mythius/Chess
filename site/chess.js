@@ -246,6 +246,7 @@
 					this.side.kCastle = false;
 				}
 			}
+			this.square.piece = null;
 			let ix = drawable.indexOf(this);
 			if(ix != -1) {
 				drawable.splice(ix,1);
@@ -294,7 +295,7 @@
 			return squares;
 		}
 		getSquareFromCode(code){
-			let x = code.charCodeAt(0)-65;
+			let x = code.toUpperCase().charCodeAt(0)-65;
 			let y = 7-(Number(code[1])-1);
 			return this.getTileAt(x,y);
 		}
