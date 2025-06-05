@@ -319,7 +319,7 @@ class Board{
 		return !this.isCheck(ot(this.turn));
 	}
 	get points(){ // material advantage is calculated
-		const points = {p:1,n:3,b:3,q:9,r:5,k:0};
+		const points = {p:1,n:3.45,b:3.55,q:10,r:5.25,k:0};
 		if(this.pts) return this.pts;
 		let wmaterial=0,bmaterial=0;
 		for(let s of this.squares.flat()){

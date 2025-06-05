@@ -596,10 +596,10 @@ float Board::points() {
             int dir = piece->color == 'w' ? 1 : -1;
             switch (tolower(squares[y][x].piece->type)) {
             case 'p': result += 1 * dir; break;
-            case 'n': result += 3 * dir; break;
-            case 'b': result += 3 * dir; break;
-            case 'r': result += 5 * dir; break;
-            case 'q': result += 9 * dir; break;
+            case 'n': result += 3.45 * dir; break;
+            case 'b': result += 3.55 * dir; break;
+            case 'r': result += 5.25 * dir; break;
+            case 'q': result += 10 * dir; break;
             default: break;
             }
         }
