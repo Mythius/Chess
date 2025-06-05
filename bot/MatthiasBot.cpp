@@ -589,6 +589,7 @@ float Board::points() {
         return savedpoints;
     }
     float result = 0.0;
+    int pieceCount = 0;
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
             Piece* piece = squares[y][x].piece;
@@ -602,8 +603,49 @@ float Board::points() {
             case 'q': result += 9 * dir; break;
             default: break;
             }
+            pieceCount++;
         }
     }
+
+    if (pieceCount < 8) {
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                Piece* piece = squares[y][x].piece;
+                if (piece != nullptr && tolower(piece->type) == 'p') {
+                    if (piece->color == 'w') {
+                        result += 0.05 * (7 - y); // more advanced, higher y
+                    }
+                    else {
+                        result -= 0.05 * y; // more advanced, lower y
+                    }
+                }
+            }
+        }
+    }
+
+    bool kingMoved = false;
+    bool enemyHasQueen = false;
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            Piece* piece = squares[y][x].piece;
+            if (piece == nullptr) continue;
+            // Check if the king has moved from its starting position
+            if (tolower(piece->type) == 'k') {
+                if ((piece->color == 'w' && (y != 7 || x != 4)) ||
+                    (piece->color == 'b' && (y != 0 || x != 4))) {
+                    kingMoved = true;
+                }
+            }
+            // Check if the enemy has a queen
+            if (tolower(piece->type) == 'q' && piece->color != turn) {
+                enemyHasQueen = true;
+            }
+        }
+    }
+    if (kingMoved && enemyHasQueen) {
+        result += (turn == 'w' ? -0.6 : 0.6);
+    }
+
     savedpoints = result;
     usedSavedPoints = true;
     return result;
