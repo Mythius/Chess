@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <algorithm>
+#include <numeric>
 using namespace std;
 struct Move;
 struct Line;
@@ -113,6 +115,8 @@ class Board {
 private:
     float savedpoints = 0;
     bool usedSavedPoints = false;
+    Line* alphabeta(int depth, float alpha, float beta, bool log);
+    float quiesce(float alpha, float beta);
 public:
     char nopossible = 'x';
     vector<Line> lines;
@@ -125,6 +129,9 @@ public:
     Square squares[8][8] = {};
     Board();
     Board(string fen);
+    Board(const Board& other);
+    Board& operator=(const Board& other);
+    Board(Board&& other) noexcept;
     ~Board();
     void loadFen(string fen);
     Square* getSquare(int x, int y);
@@ -148,6 +155,108 @@ struct Line {
     Board board;
     float eval = 0.0;
 };
+
+static float pieceValue(char type) {
+    switch (tolower(type)) {
+    case 'p': return 1.0f;
+    case 'n': return 3.45f;
+    case 'b': return 3.55f;
+    case 'r': return 5.25f;
+    case 'q': return 10.0f;
+    case 'k': return 100.0f;
+    default:  return 0.0f;
+    }
+}
+
+// Piece-square tables (centipawns, white's perspective: y=0=rank8, y=7=rank1)
+static const int pst_pawn[64] = {
+     0,  0,  0,  0,  0,  0,  0,  0,
+    50, 50, 50, 50, 50, 50, 50, 50,
+    10, 10, 20, 30, 30, 20, 10, 10,
+     5,  5, 10, 25, 25, 10,  5,  5,
+     0,  0,  0, 20, 20,  0,  0,  0,
+     5, -5,-10,  0,  0,-10, -5,  5,
+     5, 10, 10,-20,-20, 10, 10,  5,
+     0,  0,  0,  0,  0,  0,  0,  0,
+};
+static const int pst_knight[64] = {
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50,
+};
+static const int pst_bishop[64] = {
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20,
+};
+static const int pst_rook[64] = {
+     0,  0,  0,  5,  5,  0,  0,  0,
+     5, 10, 10, 10, 10, 10, 10,  5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+     0,  0,  0,  5,  5,  0,  0,  0,
+};
+static const int pst_queen[64] = {
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+     -5,  0,  5,  5,  5,  5,  0, -5,
+      0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20,
+};
+static const int pst_king[64] = {
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+     20, 20,  0,  0,  0,  0, 20, 20,
+     20, 30, 10,  0,  0, 10, 30, 20,
+};
+
+static float pstValue(char type, int x, int y, char color) {
+    int row = (color == 'w') ? y : (7 - y);
+    int idx = row * 8 + x;
+    switch (tolower(type)) {
+    case 'p': return pst_pawn[idx]   / 100.0f;
+    case 'n': return pst_knight[idx] / 100.0f;
+    case 'b': return pst_bishop[idx] / 100.0f;
+    case 'r': return pst_rook[idx]   / 100.0f;
+    case 'q': return pst_queen[idx]  / 100.0f;
+    case 'k': return pst_king[idx]   / 100.0f;
+    default:  return 0.0f;
+    }
+}
+
+// MVV-LVA: high score = search this move first (captures big pieces with small ones)
+static float moveOrderScore(const Move& m) {
+    if (m.type == pq) return 9.0f;
+    if (m.type == pr) return 5.0f;
+    if (m.type == pb) return 3.55f;
+    if (m.type == pn) return 3.45f;
+    if (m.s && m.s->piece) {
+        float victim   = pieceValue(m.s->piece->type);
+        float attacker = (m.f && m.f->piece) ? pieceValue(m.f->piece->type) : 0.0f;
+        return victim - attacker * 0.01f;
+    }
+    return 0.0f;
+}
 
 Piece::Piece() {
     type = 'p';
@@ -323,6 +432,68 @@ Board::~Board() {
         for (int x = 0; x < 8; x++) {
             delete squares[y][x].piece;
             squares[y][x].piece = nullptr;
+        }
+}
+static void copySquares(Square dst[8][8], const Square src[8][8], Board* owner) {
+    for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++) {
+            dst[y][x].pos = src[y][x].pos;
+            dst[y][x].piece = src[y][x].piece
+                ? new Piece(*src[y][x].piece)
+                : nullptr;
+            if (dst[y][x].piece) dst[y][x].piece->board = owner;
+        }
+}
+Board::Board(const Board& other) {
+    savedpoints    = other.savedpoints;
+    usedSavedPoints = other.usedSavedPoints;
+    nopossible     = other.nopossible;
+    fen            = other.fen;
+    apoints        = other.apoints;
+    castle         = other.castle;
+    enpessent      = other.enpessent;
+    turn           = other.turn;
+    bestmove       = other.bestmove;
+    lines          = {};  // lines are regenerated on demand; don't deep-copy
+    copySquares(squares, other.squares, this);
+}
+Board& Board::operator=(const Board& other) {
+    if (this == &other) return *this;
+    for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++) {
+            delete squares[y][x].piece;
+            squares[y][x].piece = nullptr;
+        }
+    lines.clear();
+    savedpoints    = other.savedpoints;
+    usedSavedPoints = other.usedSavedPoints;
+    nopossible     = other.nopossible;
+    fen            = other.fen;
+    apoints        = other.apoints;
+    castle         = other.castle;
+    enpessent      = other.enpessent;
+    turn           = other.turn;
+    bestmove       = other.bestmove;
+    copySquares(squares, other.squares, this);
+    return *this;
+}
+Board::Board(Board&& other) noexcept {
+    savedpoints    = other.savedpoints;
+    usedSavedPoints = other.usedSavedPoints;
+    nopossible     = other.nopossible;
+    fen            = move(other.fen);
+    apoints        = other.apoints;
+    castle         = move(other.castle);
+    enpessent      = move(other.enpessent);
+    turn           = other.turn;
+    bestmove       = other.bestmove;
+    lines          = move(other.lines);
+    for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++) {
+            squares[y][x].pos   = other.squares[y][x].pos;
+            squares[y][x].piece = other.squares[y][x].piece;
+            if (squares[y][x].piece) squares[y][x].piece->board = this;
+            other.squares[y][x].piece = nullptr;  // prevent double-delete
         }
 }
 Board::Board(string fen) {
@@ -622,14 +793,16 @@ float Board::points() {
             Piece* piece = squares[y][x].piece;
             if (piece == nullptr) continue;
             int dir = piece->color == 'w' ? 1 : -1;
-            switch (tolower(squares[y][x].piece->type)) {
-            case 'p': result += 1 * dir; break;
-            case 'n': result += 3.45 * dir; break;
-            case 'b': result += 3.55 * dir; break;
-            case 'r': result += 5.25 * dir; break;
-            case 'q': result += 10 * dir; break;
-            default: break;
+            float material = 0.0f;
+            switch (tolower(piece->type)) {
+            case 'p': material = 1.0f;    break;
+            case 'n': material = 3.45f;   break;
+            case 'b': material = 3.55f;   break;
+            case 'r': material = 5.25f;   break;
+            case 'q': material = 10.0f;   break;
+            default:  break;
             }
+            result += (material + pstValue(piece->type, x, y, piece->color)) * dir;
         }
     }
     savedpoints = result;
@@ -697,117 +870,135 @@ char Board::generatePossibilites(bool log) {
         return '0';
     }
 }
+float Board::quiesce(float alpha, float beta) {
+    float stand_pat = points();
+
+    // Stand pat: we can always choose to not capture (skip if in check, but rare)
+    if (turn == 'w') {
+        if (stand_pat >= beta) return beta;
+        if (stand_pat > alpha) alpha = stand_pat;
+    } else {
+        if (stand_pat <= alpha) return alpha;
+        if (stand_pat < beta) beta = stand_pat;
+    }
+
+    // Collect captures and promotions only
+    vector<Move> captures;
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            Piece* p = squares[y][x].piece;
+            if (!p || p->color != turn) continue;
+            vector<Move> moves = p->getPossibleMoves(x, y, false);
+            for (auto& m : moves) {
+                bool isCapture = m.s && m.s->piece && m.s->piece->color != turn;
+                bool isPromotion = m.type > ooo;
+                if (isCapture || isPromotion) captures.push_back(m);
+            }
+        }
+    }
+
+    // MVV-LVA ordering within quiesce too
+    sort(captures.begin(), captures.end(), [](const Move& a, const Move& b) {
+        return moveOrderScore(a) > moveOrderScore(b);
+    });
+
+    for (auto& cap : captures) {
+        if (!cap.s || !cap.f || ivs(*cap.s) || ivs(*cap.f)) continue;
+        Board nb;
+        theorize(&nb, cap, false);
+        if (!nb.valid()) continue;
+
+        float score = nb.quiesce(alpha, beta);
+
+        if (turn == 'w') {
+            if (score >= beta) return beta;
+            if (score > alpha) alpha = score;
+        } else {
+            if (score <= alpha) return alpha;
+            if (score < beta) beta = score;
+        }
+    }
+
+    return (turn == 'w') ? alpha : beta;
+}
+
 Line* Board::choosePossibilites(int depth, bool log) {
-    Line* bestwhite;
-    Line* bestblack;
-    Line* temp;
-    int ixwhite = 0, ixblack = 0;
-    bestwhite = nullptr;
-    bestblack = nullptr;
+    return alphabeta(depth, -1e6f, 1e6f, log);
+}
+
+Line* Board::alphabeta(int depth, float alpha, float beta, bool log) {
+    // Resolve terminal / already-generated states
     char end_info;
     if (nopossible == 'x') {
         end_info = generatePossibilites();
-    }
-    else {
+    } else {
         end_info = nopossible;
     }
     if (end_info != '0') {
-        if (log) cout << "END SEEN: ";
-        if (end_info == 's') {
-            apoints = 0;
-            if (log) cout << "STALEMATE" << endl;
-        }
-        else if (end_info == 'c') {
-            apoints = turn == 'b' ? 1200 : -1200;
-            if (log) cout << "CHECKMATE" << endl;
-        }
+        if (end_info == 's') apoints = 0;
+        else if (end_info == 'c') apoints = turn == 'b' ? 1200 : -1200;
+        if (log) cout << (end_info == 's' ? "STALEMATE" : "CHECKMATE") << endl;
         return nullptr;
     }
-    vector<thread> threads;
-    for (int i = 0; i < lines.size(); i++) {
-        float eval = rand() % 200;
-        eval = eval / 2000.0;
-        lines[i].eval = eval;
+
+    // Sort by MVV-LVA heuristic so captures are searched first, maximizing cutoffs
+    vector<int> order(lines.size());
+    iota(order.begin(), order.end(), 0);
+    sort(order.begin(), order.end(), [this](int a, int b) {
+        return moveOrderScore(lines[a].move) > moveOrderScore(lines[b].move);
+    });
+
+    Line* best = nullptr;
+
+    for (int idx : order) {
+        float eval = 0.0f;
+
         if (depth == 1) {
-            lines[i].eval += lines[i].board.points();
+            eval += lines[idx].board.quiesce(alpha, beta);
+        } else {
+            lines[idx].board.alphabeta(depth - 1, alpha, beta, log);
+            eval += lines[idx].board.apoints;
         }
-        else {
-            //if (depth < 3) {
-            //if (depth < 4) {
-            if (true) {
-                temp = lines[i].board.choosePossibilites(depth - 1, log);
-                lines[i].eval += lines[i].board.apoints;
-            }
-            else {
-                ThreadData td = {};
-                td.b = &lines[i].board;
-                td.d = depth - 1;
-                td.result = &lines[i].eval;
-                threads.push_back(thread(calculateBoard, td));
-                if (log) cout << "Started Thread" << endl;
-            }
-        }
-        if (lines[i].move.type == oo || lines[i].move.type == ooo) {
-            lines[i].eval += turn == 'w' ? .5 : -.5;
-        }
-        if (bestwhite == nullptr) {
-            bestwhite = &lines[i];
-            bestblack = &lines[i];
-        }
-        else {
-            if (lines[i].eval > bestwhite->eval) {
-                bestwhite = &lines[i];
-                ixwhite = i;
-            }
-            if (lines[i].eval < bestblack->eval) {
-                bestblack = &lines[i];
-                ixblack = i;
-            }
+
+        lines[idx].eval = eval;
+
+        // Alpha-beta: white maximizes, black minimizes
+        if (turn == 'w') {
+            if (best == nullptr || eval > best->eval) best = &lines[idx];
+            if (eval > alpha) alpha = eval;
+            if (alpha >= beta) break; // beta cutoff
+        } else {
+            if (best == nullptr || eval < best->eval) best = &lines[idx];
+            if (eval < beta) beta = eval;
+            if (beta <= alpha) break; // alpha cutoff
         }
     }
 
-    for (int i = 0; i < threads.size(); i++) {
-        if (threads[i].joinable()) {
-            threads[i].join();
-        }
-    }
+    if (best == nullptr) return nullptr;
 
-    // WHEN ALL THREADS ARE DONE PROCEED //
+    bestmove = best->move;
+    apoints = best->eval;
 
-
-    if (turn == 'w') {
-        if (bestwhite == nullptr) {
-            return nullptr;
-        }
-        else {
-            bestmove = bestwhite->move;
-            apoints = bestwhite->eval;
-        }
-    }
-    else {
-        if (bestwhite == nullptr) {
-            return nullptr;
-        }
-        else {
-            bestmove = bestblack->move;
-            apoints = bestblack->eval;
-        }
-    }
     if (log && depth != 1) {
-        if (lines.size() == 0) {
-            cout << "No Move";
+        // Print all evaluated moves at the root (highest depth) for debugging
+        vector<pair<float,int>> scored;
+        for (int i = 0; i < (int)lines.size(); i++) {
+            if (&lines[i] == best || lines[i].eval != 0.0f)
+                scored.push_back({lines[i].eval, i});
         }
-        else {
-            cout << "Best Move: ";
-            if (turn == 'w') {
-                cout << "(" << depth << ") " << moveToString(bestwhite->move) << ", points: " << bestwhite->eval << endl;
-            }
-            else {
-                cout << "(" << depth << ") " << moveToString(bestblack->move) << ", points: " << bestblack->eval << endl;
-            }
+        if (depth >= 3) {
+            sort(scored.begin(), scored.end(), [](auto& a, auto& b){
+                return a.first > b.first;
+            });
+            cout << "(" << depth << ") All moves:" << endl;
+            for (auto& [sc, i] : scored)
+                cout << "  " << moveToString(lines[i].move) << " = " << sc << endl;
         }
+        cout << "(" << depth << ") Best: " << moveToString(best->move)
+             << ", score: " << best->eval << endl;
     }
-    return (turn == 'w') ? bestwhite : bestblack;
+
+    return best;
 }
 
 int main(int argc, char** argv) {
@@ -827,6 +1018,8 @@ int main(int argc, char** argv) {
         cout << "\tm E2E4 to move" << endl;
         cout << "\tq to quit" << endl;
         cout << "\tgo (calculates best move)" << endl;
+        cout << "\teval (static score)" << endl;
+        cout << "\tbreakdown (per-piece material+PST)" << endl;
     }
     else {
         int depth = argv[1][0] - '0';
@@ -850,6 +1043,13 @@ int main(int argc, char** argv) {
     }
     while (true) {
         getline(cin, command);
+        if (!command.empty() && command.back() == '\r') command.pop_back();
+        // Strip UTF-8 BOM that PowerShell may prepend to piped input
+        if (command.size() >= 3 &&
+            (unsigned char)command[0] == 0xEF &&
+            (unsigned char)command[1] == 0xBB &&
+            (unsigned char)command[2] == 0xBF)
+            command = command.substr(3);
         if (command == "d") {
             cout << BOARD->toString() << endl << BOARD->getFen() << endl;
             cout << BOARD->turn << " to move" << endl;
@@ -869,6 +1069,33 @@ int main(int argc, char** argv) {
         }
         else if (command == "eval") {
             cout << "Point Evaluation: " << BOARD->points() << endl;
+        }
+        else if (command == "breakdown") {
+            float total = 0.0f;
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    Piece* p = BOARD->squares[y][x].piece;
+                    if (!p) continue;
+                    float mat = 0.0f;
+                    switch (tolower(p->type)) {
+                    case 'p': mat = 1.0f;   break;
+                    case 'n': mat = 3.45f;  break;
+                    case 'b': mat = 3.55f;  break;
+                    case 'r': mat = 5.25f;  break;
+                    case 'q': mat = 10.0f;  break;
+                    }
+                    float pst = pstValue(p->type, x, y, p->color);
+                    int dir = (p->color == 'w') ? 1 : -1;
+                    float contrib = (mat + pst) * dir;
+                    total += contrib;
+                    char col = 'A' + x;
+                    int rank = 8 - y;
+                    cout << col << rank << " " << p->type
+                         << ": mat=" << mat << " pst=" << pst
+                         << " contrib=" << contrib << endl;
+                }
+            }
+            cout << "Total: " << total << endl;
         }
         else if (command == "check") {
             if (BOARD->isCheck('w')) {

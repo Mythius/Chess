@@ -75,15 +75,24 @@ class Piece {
                     ? ['K', 'Q', 'R', 'r']
                     : ['k', 'q', 'r', 'R'];
                 const inCheck = b.isCheck(this.color);
+                const kPos = A1({x: 4, y: rank}); // E1 or E8
                 if (!inCheck && b.castle.includes(K) &&
                     b.square(7, rank)?.type == R &&
                     !b.square(5, rank) && !b.square(6, rank)) {
-                    moves.push('O-O');
+                    // King must not pass through or land on an attacked square
+                    const thru = b.theorize(kPos + A1({x: 5, y: rank}));
+                    const dest = b.theorize(kPos + A1({x: 6, y: rank}));
+                    if (!thru.isCheck(this.color) && !dest.isCheck(this.color))
+                        moves.push('O-O');
                 }
                 if (!inCheck && b.castle.includes(k) &&
                     b.square(0, rank)?.type == R &&
                     !b.square(1, rank) && !b.square(2, rank) && !b.square(3, rank)) {
-                    moves.push('O-O-O');
+                    // King must not pass through or land on an attacked square
+                    const thru = b.theorize(kPos + A1({x: 3, y: rank}));
+                    const dest = b.theorize(kPos + A1({x: 2, y: rank}));
+                    if (!thru.isCheck(this.color) && !dest.isCheck(this.color))
+                        moves.push('O-O-O');
                 }
             }
         } else if (to == 'p') {
@@ -225,7 +234,12 @@ class Board {
         if (this._pts) return this._pts;
         const values = { p: 1, n: 3.45, b: 3.55, q: 10, r: 5.25, k: 0 };
         let w = 0, b = 0;
-        this.forEach(t => { if (t) (t.color == 'w' ? w : b) += values[t.type.toLowerCase()]; });
+        this.forEach(t => {
+            if (t) {
+                if (t.color == 'w') w += values[t.type.toLowerCase()];
+                else b += values[t.type.toLowerCase()];
+            }
+        });
         this._pts = { w, b, o: w - b };
         return this._pts;
     }
