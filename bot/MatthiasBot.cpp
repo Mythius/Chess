@@ -1,7 +1,15 @@
-#include "MatthiasBot.h"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <thread>
+using namespace std;
+struct Move;
+struct Line;
+class Board;
+struct Square;
+class Piece;
 
 Board* BOARD;
-string path;
 
 struct XY {
     int x = -1;
@@ -66,7 +74,7 @@ Move getMove(Square* s, Square* f) {
 string moveToString(Move m) {
     string result;
     if (m.type > ooo) { // if move is a pawn promotion
-        cout << A1(m.f->pos) << A1(m.s->pos);
+        result += A1(m.f->pos) + A1(m.s->pos);
         switch (m.type) {
         case pq: result += "=q"; break;
         case pr: result += "=r"; break;
@@ -117,10 +125,12 @@ public:
     Square squares[8][8] = {};
     Board();
     Board(string fen);
+    ~Board();
     void loadFen(string fen);
     Square* getSquare(int x, int y);
     string toString();
     bool isCheck(char c);
+    bool isAttacked(int x, int y, char attackerColor);
     void getSquares(vector<Move>* result, int x, int y, int dx, int dy, char c, bool mult);
     vector<Move> getPossibleFor(string a1);
     string getFen();
@@ -131,7 +141,6 @@ public:
     void clearLines();
     char generatePossibilites(bool log = false);
     Line* choosePossibilites(int depth = 1, bool log = false);
-    Line* choosePossibilitesMULTI(int depth = 1, bool log = false);
 };
 
 struct Line {
@@ -154,9 +163,8 @@ vector<Move> Piece::getPossibleMoves(int x, int y, bool castles, bool log) {
     char to = tolower(type);
     vector<Move> arr;
     vector<Move>* result = &arr;
-    Square* f = board->getSquare(x, y);
     if (board == nullptr) return arr;
-    int i = 0;
+    Square* f = board->getSquare(x, y);
     if (to == 'n') {
         board->getSquares(result, x, y, 2, 1, color, false);
         board->getSquares(result, x, y, 2, -1, color, false);
@@ -198,31 +206,35 @@ vector<Move> Piece::getPossibleMoves(int x, int y, bool castles, bool log) {
         board->getSquares(result, x, y, 0, -1, color, false);
         board->getSquares(result, x, y, 1, 0, color, false);
         board->getSquares(result, x, y, -1, 0, color, false);
-        if (castles && false) {
+        if (castles) {
             int rank = color == 'w' ? 7 : 0;
             char kpriv = color == 'w' ? 'K' : 'k';
             char qpriv = color == 'w' ? 'Q' : 'q';
             char rtype = color == 'w' ? 'R' : 'r';
-            Piece* king = board->getSquare(4, rank)->piece;
-            bool kinggood = king != nullptr && !board->isCheck(board->turn);
-            if (board->castle.find(kpriv) != string::npos) {
-                if (kinggood &&
-                    board->getSquare(7, rank)->piece->type == rtype &&
+            char opp = ot(color);
+            bool kinggood = !board->isCheck(color);
+            if (kinggood && board->castle.find(kpriv) != string::npos) {
+                Square* rook = board->getSquare(7, rank);
+                if (rook->piece != nullptr && rook->piece->type == rtype &&
                     board->getSquare(5, rank)->piece == nullptr &&
-                    board->getSquare(6, rank)->piece == nullptr) {
+                    board->getSquare(6, rank)->piece == nullptr &&
+                    !board->isAttacked(5, rank, opp) &&
+                    !board->isAttacked(6, rank, opp)) {
                     Move m = getMove(board->getSquare(6, rank), f);
-                    m.type = oo; // short castle
+                    m.type = oo;
                     result->push_back(m);
                 }
             }
-            if (board->castle.find(qpriv) != string::npos) {
-                if (kinggood &&
-                    board->getSquare(0, rank)->piece->type == rtype &&
+            if (kinggood && board->castle.find(qpriv) != string::npos) {
+                Square* rook = board->getSquare(0, rank);
+                if (rook->piece != nullptr && rook->piece->type == rtype &&
                     board->getSquare(1, rank)->piece == nullptr &&
                     board->getSquare(2, rank)->piece == nullptr &&
-                    board->getSquare(3, rank)->piece == nullptr) {
+                    board->getSquare(3, rank)->piece == nullptr &&
+                    !board->isAttacked(2, rank, opp) &&
+                    !board->isAttacked(3, rank, opp)) {
                     Move m = getMove(board->getSquare(2, rank), f);
-                    m.type = ooo; // long castle
+                    m.type = ooo;
                     result->push_back(m);
                 }
             }
@@ -306,6 +318,13 @@ Board::Board() {
     lines.clear();
     apoints = 0;
 }
+Board::~Board() {
+    for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++) {
+            delete squares[y][x].piece;
+            squares[y][x].piece = nullptr;
+        }
+}
 Board::Board(string fen) {
     loadFen(fen);
 }
@@ -315,17 +334,14 @@ void Board::loadFen(string fen) {
 
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
-            XY pos = { x,y };
-            Square s;
-            s.pos = pos;
-            s.piece = nullptr;
-            squares[y][x] = s;
+            delete squares[y][x].piece;
+            squares[y][x].piece = nullptr;
+            squares[y][x].pos = { x, y };
         }
     }
 
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
-            if (x >= 8) break;
             char p = fen[i];
             if (isdigit(p)) {
                 x += p - '0' - 1;
@@ -346,6 +362,8 @@ void Board::loadFen(string fen) {
     end = end == string::npos ? (int)fen.size() : end;
     string enpcode = fen.substr(0, end);
     nopossible = 'x';
+    usedSavedPoints = false;
+    savedpoints = 0;
     lines.clear();
     if (enpcode != "-") {
         enpessent = toXY(enpcode);
@@ -401,8 +419,20 @@ bool Board::isCheck(char c) {
             }
         }
     }
-    // cout << "(" << in_danger << ") "; // DEBUG 
+    // cout << "(" << in_danger << ") "; // DEBUG
     return in_danger.find(k) != string::npos;
+}
+bool Board::isAttacked(int x, int y, char attackerColor) {
+    for (int iy = 0; iy < 8; iy++) {
+        for (int ix = 0; ix < 8; ix++) {
+            Square* s = getSquare(ix, iy);
+            if (s->piece == nullptr || s->piece->color != attackerColor) continue;
+            vector<Move> moves = s->piece->getPossibleMoves(ix, iy, false);
+            for (auto& m : moves)
+                if (m.s->pos.x == x && m.s->pos.y == y) return true;
+        }
+    }
+    return false;
 }
 void Board::getSquares(vector<Move>* result, int x, int y, int dx, int dy, char c, bool mult) {
     Square* s;
@@ -483,56 +513,55 @@ void Board::theorize(Board* nb, Move m, bool make_move) {
     nb->loadFen(getFen());
     nb->clearLines();
     nb->turn = ot(turn);
-    string rem_castle = ot(turn) == 'w' ? "KQ" : "kq";
+    string rem_castle = turn == 'w' ? "KQ" : "kq";
     if (m.type == oo) {
-        int r = turn == 'w' ? 0 : 7;
-        nb->squares[r][6].piece = nb->squares[r][4].piece;
-        nb->squares[r][5].piece = nb->squares[r][7].piece;
+        int r = turn == 'w' ? 7 : 0;
+        nb->squares[r][6].piece = nb->squares[r][4].piece; // king e→g
+        nb->squares[r][5].piece = nb->squares[r][7].piece; // rook h→f
         nb->squares[r][4].piece = nullptr;
         nb->squares[r][7].piece = nullptr;
         removeSubstr(&nb->castle, rem_castle);
     }
     else if (m.type == ooo) {
-        int r = turn == 'w' ? 0 : 7;
-        nb->squares[r][6].piece = nb->squares[r][4].piece;
-        nb->squares[r][5].piece = nb->squares[r][7].piece;
+        int r = turn == 'w' ? 7 : 0;
+        nb->squares[r][2].piece = nb->squares[r][4].piece; // king e→c
+        nb->squares[r][3].piece = nb->squares[r][0].piece; // rook a→d
         nb->squares[r][4].piece = nullptr;
-        nb->squares[r][7].piece = nullptr;
+        nb->squares[r][0].piece = nullptr;
         removeSubstr(&nb->castle, rem_castle);
     }
     else if (m.type > ooo) { // promotion
         char pt[] = { 'n','r','b','q' };
         char promotion = pt[m.type - 4];
         promotion = (turn == 'w') ? toupper(promotion) : promotion;
+        delete nb->getSquare(m.s->pos.x, m.s->pos.y)->piece; // captured piece (if any)
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = new Piece(promotion, nb);
-        delete nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
+        delete nb->getSquare(m.f->pos.x, m.f->pos.y)->piece; // pawn
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
     }
     else {
         if (nb->getSquare(m.s->pos.x, m.s->pos.y)->piece) delete nb->getSquare(m.s->pos.x, m.s->pos.y)->piece;
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
-        if (true) { // REMOVE CASTLE RIGHTS
-            Square* s = nb->getSquare(m.s->pos.x, m.s->pos.y);
-            Square* f = nb->getSquare(m.f->pos.x, m.f->pos.y);
-            if (tolower(s->piece->type) == 'k') {
-                removeSubstr(&nb->castle, rem_castle);
+        Square* s = nb->getSquare(m.s->pos.x, m.s->pos.y);
+        Square* f = nb->getSquare(m.f->pos.x, m.f->pos.y);
+        if (tolower(s->piece->type) == 'k') {
+            removeSubstr(&nb->castle, rem_castle);
+        }
+        if (f->pos.x == 0) {
+            if (f->pos.y == 0) {
+                removeSubstr(&nb->castle, "q"); // a8: black queenside rook
             }
-            if (f->pos.x == 0) {
-                if (f->pos.y == 0) {
-                    removeSubstr(&nb->castle, "q");
-                }
-                else if (f->pos.y == 7) {
-                    removeSubstr(&nb->castle, "k");
-                }
+            else if (f->pos.y == 7) {
+                removeSubstr(&nb->castle, "Q"); // a1: white queenside rook
             }
-            else if (f->pos.x == 7) {
-                if (f->pos.y == 0) {
-                    removeSubstr(&nb->castle, "Q");
-                }
-                else if (f->pos.y == 7) {
-                    removeSubstr(&nb->castle, "K");
-                }
+        }
+        else if (f->pos.x == 7) {
+            if (f->pos.y == 0) {
+                removeSubstr(&nb->castle, "k"); // h8: black kingside rook
+            }
+            else if (f->pos.y == 7) {
+                removeSubstr(&nb->castle, "K"); // h1: white kingside rook
             }
         }
     }
@@ -585,7 +614,6 @@ bool Board::valid() {
 }
 float Board::points() {
     if (usedSavedPoints) {
-        cout << "THIS CODE WORKS" << endl;
         return savedpoints;
     }
     float result = 0.0;
@@ -609,15 +637,6 @@ float Board::points() {
     return result;
 }
 void Board::clearLines() {
-    for (Line l : lines) {
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                Piece* p = l.board.getSquare(x, y)->piece;
-                if (p) delete p;
-                l.board.getSquare(x, y)->piece = nullptr;
-            }
-        }
-    }
     lines.clear();
 }
 char Board::generatePossibilites(bool log) {
@@ -788,16 +807,13 @@ Line* Board::choosePossibilites(int depth, bool log) {
             }
         }
     }
-    clearLines();
     return (turn == 'w') ? bestwhite : bestblack;
 }
 
 int main(int argc, char** argv) {
-    const bool DEV = true;
     BOARD = new Board;
     BOARD->loadFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
     string command;
-    path = argv[0];
     // #### TEST AREA #####
 
     // TEST FEN: r6k/pp4pp/1b1P4/8/1n4Q1/2N1RP2/PPq3p1/1RB1K3 b - - 0 1

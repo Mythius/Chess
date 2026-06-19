@@ -1,5 +1,5 @@
 let c = require('./iostream.js');
-let b = require('./matthias_bot.js');
+let b = require('./engine.js');
 const DEV = false;
 
 if(DEV) console.log(b);
@@ -25,7 +25,7 @@ async function main(){
 	} else if (command == 'start'){
 		b.board.loadFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
 	} else if (command == 'go'){
-		let mc = await b.board.choosePossibilites(3,DEV);
+		let mc = await b.board.search(3,DEV);
 		console.log('Best Move:'+mc);
 	} else if (command == 'eval'){
 		let p = b.board.points;
@@ -53,11 +53,7 @@ async function main(){
 			console.log(part2+' is in check: '+b.board.isCheck(part2));
 		} else if (part1 == 'best'){
 			if(!part2) part2 = 1;
-			let mc = await b.board.choosePossibilitesMULTI(Number(part2),DEV);
-			console.log('Best Move:'+mc);
-		} else if (part1 == 'multi'){
-			if(!part2) part2 = 1;
-			let mc = await b.board.choosePossibilitesMULTI(Number(part2),true);
+			let mc = await b.board.search(Number(part2), DEV);
 			console.log('Best Move:'+mc);
 		} else {
 			console.log('Invalid');

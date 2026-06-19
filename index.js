@@ -4,7 +4,7 @@ var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var fs = require('fs');
 var system = require('child_process');
-var mbot = require('./bot/matthias_bot.js');
+var mbot = require('./bot/engine.js');
 var pgn = require('./fen_to_pgn.js');
 
 var file = {
@@ -67,7 +67,7 @@ function getBestMove(fen){
 	return new Promise((res,rej)=>{
 		let board = new mbot.Board(fen);
 		console.log('calculating');
-		board.choosePossibilitesMULTI(4,true).then(e=>{
+		board.search(4,true).then(e=>{
 			res(e);
 		});
 	});
