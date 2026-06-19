@@ -6,7 +6,7 @@ const A1 = t => String.fromCharCode(t.x + 65) + (8 - t.y);
 const XY = s => ({ x: s[0].toUpperCase().charCodeAt(0) - 65, y: 7 - (Number(s[1]) - 1) });
 const ot = t => t == 'w' ? 'b' : 'w';
 
-const EXE = path.join(__dirname, 'MatthiasBot.exe');
+const EXE = path.join(__dirname, process.platform === 'win32' ? 'MatthiasBot.exe' : 'MatthiasBot');
 
 var cache = {};
 
