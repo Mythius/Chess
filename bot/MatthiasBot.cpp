@@ -31,7 +31,8 @@ enum movetype {
     pn,
     pr,
     pb,
-    pq
+    pq,
+    enpcap  // en passant capture (diagonal pawn capture to empty square)
 };
 
 struct Move {
@@ -75,7 +76,7 @@ Move getMove(Square* s, Square* f) {
 
 string moveToString(Move m) {
     string result;
-    if (m.type > ooo) { // if move is a pawn promotion
+    if (m.type >= pn && m.type <= pq) { // if move is a pawn promotion
         result += A1(m.f->pos) + A1(m.s->pos);
         switch (m.type) {
         case pq: result += "=q"; break;
@@ -250,6 +251,7 @@ static float moveOrderScore(const Move& m) {
     if (m.type == pr) return 5.0f;
     if (m.type == pb) return 3.55f;
     if (m.type == pn) return 3.45f;
+    if (m.type == enpcap) return 1.0f - 0.01f; // pawn captures pawn
     if (m.s && m.s->piece) {
         float victim   = pieceValue(m.s->piece->type);
         float attacker = (m.f && m.f->piece) ? pieceValue(m.f->piece->type) : 0.0f;
@@ -396,6 +398,17 @@ vector<Move> Piece::getPossibleMoves(int x, int y, bool castles, bool log) {
             else {
                 Move m = getMove(r, f);
                 result->push_back(m);
+            }
+        }
+        // En passant captures — diagonal to empty square that matches the ep target
+        if (board->enpessent.x != -1) {
+            if (l != nullptr && !ivs(*l) && l->piece == nullptr &&
+                board->enpessent.x == x - 1 && board->enpessent.y == y + dy) {
+                Move m = getMove(l, f); m.type = enpcap; result->push_back(m);
+            }
+            if (r != nullptr && !ivs(*r) && r->piece == nullptr &&
+                board->enpessent.x == x + 1 && board->enpessent.y == y + dy) {
+                Move m = getMove(r, f); m.type = enpcap; result->push_back(m);
             }
         }
     }
@@ -684,6 +697,7 @@ void Board::theorize(Board* nb, Move m, bool make_move) {
     nb->loadFen(getFen());
     nb->clearLines();
     nb->turn = ot(turn);
+    nb->enpessent = {-1, -1}; // cleared by default; overridden below for double pawn push
     string rem_castle = turn == 'w' ? "KQ" : "kq";
     if (m.type == oo) {
         int r = turn == 'w' ? 7 : 0;
@@ -701,7 +715,7 @@ void Board::theorize(Board* nb, Move m, bool make_move) {
         nb->squares[r][0].piece = nullptr;
         removeSubstr(&nb->castle, rem_castle);
     }
-    else if (m.type > ooo) { // promotion
+    else if (m.type >= pn && m.type <= pq) { // promotion
         char pt[] = { 'n','r','b','q' };
         char promotion = pt[m.type - 4];
         promotion = (turn == 'w') ? toupper(promotion) : promotion;
@@ -710,12 +724,21 @@ void Board::theorize(Board* nb, Move m, bool make_move) {
         delete nb->getSquare(m.f->pos.x, m.f->pos.y)->piece; // pawn
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
     }
+    else if (m.type == enpcap) {
+        // Move pawn to empty diagonal square, then remove captured pawn from adjacent square
+        nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
+        nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
+        Square* cap = nb->getSquare(m.s->pos.x, m.f->pos.y); // same file as dest, same rank as from
+        if (cap && cap->piece) { delete cap->piece; cap->piece = nullptr; }
+    }
     else {
         if (nb->getSquare(m.s->pos.x, m.s->pos.y)->piece) delete nb->getSquare(m.s->pos.x, m.s->pos.y)->piece;
         nb->getSquare(m.s->pos.x, m.s->pos.y)->piece = nb->getSquare(m.f->pos.x, m.f->pos.y)->piece;
         nb->getSquare(m.f->pos.x, m.f->pos.y)->piece = nullptr;
         Square* s = nb->getSquare(m.s->pos.x, m.s->pos.y);
         Square* f = nb->getSquare(m.f->pos.x, m.f->pos.y);
+        if (m.type == enp) // double pawn push: record en passant square for opponent
+            nb->enpessent = { m.f->pos.x, (m.f->pos.y + m.s->pos.y) / 2 };
         if (tolower(s->piece->type) == 'k') {
             removeSubstr(&nb->castle, rem_castle);
         }
@@ -891,8 +914,9 @@ float Board::quiesce(float alpha, float beta) {
             vector<Move> moves = p->getPossibleMoves(x, y, false);
             for (auto& m : moves) {
                 bool isCapture = m.s && m.s->piece && m.s->piece->color != turn;
-                bool isPromotion = m.type > ooo;
-                if (isCapture || isPromotion) captures.push_back(m);
+                bool isPromotion = m.type >= pn && m.type <= pq;
+                bool isEnPassant = m.type == enpcap;
+                if (isCapture || isPromotion || isEnPassant) captures.push_back(m);
             }
         }
     }

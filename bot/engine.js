@@ -118,8 +118,11 @@ class Piece {
                 if (y == startRank && !f2?.type)
                     moves.push({ x, y: y + dy * 2, enp: A1({ x, y: y + dy }) });
             }
+            const enp = b.enpessant !== '-' ? b.enpessant.toUpperCase() : null;
             if (l && l != -1 && l.color != this.color) addPawnMove(x - 1, y + dy);
+            else if (enp && l === 0 && A1({ x: x - 1, y: y + dy }) === enp) addPawnMove(x - 1, y + dy);
             if (r && r != -1 && r.color != this.color) addPawnMove(x + 1, y + dy);
+            else if (enp && r === 0 && A1({ x: x + 1, y: y + dy }) === enp) addPawnMove(x + 1, y + dy);
         }
 
         if (log) {
@@ -251,6 +254,7 @@ class Board {
     theorize(move_code, make_move = false) {
         const nb = new Board(this.fen);
         nb.turn = ot(this.turn);
+        nb.enpessant = '-';
         const mc = move_code.toUpperCase();
 
         if (mc == 'O-O') {
@@ -277,8 +281,16 @@ class Board {
         } else {
             const a = XY(move_code.slice(0, 2));
             const b = XY(move_code.slice(2, 4));
-            nb.squares[b.y][b.x] = nb.squares[a.y][a.x];
+            const movingPiece = nb.squares[a.y][a.x];
+            const wasEmpty = !nb.squares[b.y][b.x];
+            nb.squares[b.y][b.x] = movingPiece;
             nb.squares[a.y][a.x] = null;
+            if (movingPiece?.type.toLowerCase() === 'p') {
+                if (a.x !== b.x && wasEmpty)
+                    nb.squares[a.y][b.x] = null;                          // en passant: remove captured pawn
+                if (Math.abs(a.y - b.y) === 2)
+                    nb.enpessant = A1({ x: a.x, y: (a.y + b.y) / 2 }).toLowerCase(); // set ep square for opponent
+            }
         }
 
         if (make_move) {
