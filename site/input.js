@@ -27,7 +27,8 @@ class mouse{
             mouse.pos.y = pos.y;
         }
         function mouseup(e) {
-            if(e.target!=element)return;
+            // Always clear the button state, even if released off the board,
+            // so a press that started on the board can't get stuck "down".
             if(e.which == 1){
                 mouse.down = false;
             } else if(e.which == 3){
@@ -75,8 +76,10 @@ class Touch{
             callback(t);
         }
     }
-    static init(startcallback=()=>{}){
+    static init(startcallback=()=>{},element=null){
         document.addEventListener('touchstart',e=>{
+            // Only touches that begin on the given element (e.g. the board canvas) count
+            if(element && e.target!=element) return;
             Touch.start(e,startcallback);
         });
         document.addEventListener('touchmove',Touch.move);

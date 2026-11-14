@@ -40,7 +40,7 @@ Touch.init(data=>{
 	setTimeout(e=>{
 		mouse.down = false;
 	},300);
-});
+},canvas);
 
 function flip(){
 	ChessGame.flipBoard();
